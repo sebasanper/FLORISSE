@@ -65,12 +65,16 @@ camera.SetPosition(-800, -400, 300);
 camera.SetFocalPoint(0, 0, 0);
 camera.SetViewUp(0,0,1)
 
-# Setup light
-light = vtk.vtkLight()
-light.SetColor(1, 1, 1)
-light.SetPosition(-800, -400, 300);
-light.SetFocalPoint(0, 0, 0);
-light.SetIntensity(1)
+# Setup lights, One for each plane to prevent any kind of shadow artefacts
+light1 = vtk.vtkLight()
+light1.SetPosition(0, 0, 0);
+light1.SetFocalPoint(1, 0, 0);
+light2 = vtk.vtkLight()
+light2.SetPosition(0, 0, 0);
+light2.SetFocalPoint(0, 1, 0);
+light3 = vtk.vtkLight()
+light3.SetPosition(0, 0, 1000);
+light3.SetFocalPoint(0, 0, 1);
 
 # Setup rendering
 renderer = vtk.vtkRenderer()
@@ -80,13 +84,14 @@ renderer.AddActor(cutActor3)
 renderer.SetBackground(1,1,1)
 renderer.SetActiveCamera(camera);
 renderer.ResetCamera()
-renderer.AddLight(light)
+renderer.AddLight(light1)
+renderer.AddLight(light2)
+renderer.AddLight(light3)
 
 # Set renderingwindow and render for the first time
 renderWindow = vtk.vtkRenderWindow()
 renderWindow.AddRenderer(renderer)
 renderWindow.Render()
-
 
 class slicerInterface(QWidget):
     def __init__(self):
