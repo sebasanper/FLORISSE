@@ -28,6 +28,12 @@ Matplotlib
 
 Jupyter Notebooks
 
+System Requirements for optional VTK visualization tools:
+--------------------
+vtk (Recomended to use Anaconda 64bit, install VTK using
+     $ conda install -c clinicalgraphics vtk
+     )
+
 To Run:
 --------
 Open RunGAUSS_3D.ipynb - this notebook contains 5 examples of how to use this FLORIS code:

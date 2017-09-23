@@ -1,11 +1,10 @@
 # optimization modules
 
 import numpy as np
-import pandas as pd
-import main
-import utilities
-from scipy.interpolate import interp2d
+
 from scipy.optimize import minimize
+
+import florisCoreFunctions.main as main
 
 def optPlant(x,strOpt,inputData):
 
@@ -72,8 +71,9 @@ def axialOpt(inputData):
 def yawOpt(inputData):
 
 	yaw 	= inputData['yawAngles']
-	minYaw 	= inputData['minYaw']
-	maxYaw 	= inputData['maxYaw']
+	minYaw 	= [0.0]
+	maxYaw 	= [25.0] 
+
 	nTurbs 	= len(inputData['turbineX'])
 
 	x0 		= inputData['yawAngles'] 
@@ -100,41 +100,3 @@ def yawOpt(inputData):
 		print('Turbine ', i, ' yaw angle = ', resPlant.x[i])
 
 	return yawOpt
-
-def CpCtFunction(fileloc):
-
-	# lookup table for Cp/Ct based on FAST
-	filenameCp = fileloc + 'cpPitch.csv'
-	filenameCt = fileloc + 'ctPitch.csv' 
-
-	cp = pd.read_csv(filenameCp)
-	ct = pd.read_csv(filenameCt)
-
-	cp = cp.rename(columns={'Unnamed: 0':'beta'})
-	ct = ct.rename(columns={'Unnamed: 0':'beta'})
-
-	# interpolation functions for Cp and Ct ===============================================
-	windSpeeds = []
-	beta = []
-	for i in range(len(cp.columns)-1):
-		windSpeeds.append(float(cp.columns[i+1]))
-	for i in range(len(cp['beta'])):
-		beta.append(cp['beta'][i])
-
-	Cp = []
-	Ct = []
-	for i in range(len(windSpeeds)):
-		for j in range(len(beta)):
-			Cp.append(cp[cp.columns[i+1]][j])
-			Ct.append(ct[ct.columns[i+1]][j])
-			#print(windSpeeds[i],beta[j],cp[cp.columns[i+1]][j])
-
-	fCp = interp2d(windSpeeds,beta,Cp,kind='cubic')
-	fCt = interp2d(windSpeeds,beta,Ct,kind='cubic')
-
-	#print(fCp(8.5,4))
-	#print(fCt(8.5,4))
-	# =====================================================================================
-
-	return fCp,fCt,beta
-
