@@ -60,19 +60,18 @@ def windPlant(model, layout, cSet):
 
     # sort turbine coordinates from front to back
     sortedTurbIds = [i[0] for i in sorted(enumerate(xTurb), key=lambda x:x[1])]
-    print(sortedTurbIds)
 
     # initialize flow field with a uniform shear layer
     Ufield = utilities.initializeFlowField(X, Y, Z, layout)
     UfieldOrig = copy.copy(Ufield)
 
     for turbI in sortedTurbIds:
+        Uwake = copy.copy(UfieldOrig)
 
         # compute effective wind speed at each turbine
         # take the average across the rotor disk
         output.windSpeed[turbI] = utilities.avgVelocity(X, Y, Z, Ufield,
                 xTurb[turbI], yTurb[turbI], zTurb[turbI], D[turbI], turbI, model, cSet)
-#        print(output.windSpeed[turbI])
 
         # adjust Cp/Ct based on local velocity (both tables were generated using FAST, Jonkman et. al. 2005)
         # Compute Cp and Ct using wind speed and possibly pitch
@@ -85,7 +84,7 @@ def windPlant(model, layout, cSet):
 
         if output.Ct[turbI] >= 1.0:
             output.Ct[turbI] = 0.99999999
-#        print(output.Ct)
+
         # Compute axial induction factor
         output.aI[turbI] = (0.5 / np.cos(yaw[turbI] * np.pi / 180.)) * (1 -
                 np.sqrt(1-output.Ct[turbI]*np.cos(yaw[turbI]*np.pi/180)))
@@ -100,11 +99,11 @@ def windPlant(model, layout, cSet):
                 np.atleast_3d(X[:, :, turbI]), np.atleast_3d(Y[:, :, turbI]),
                 np.atleast_3d(Z[:, :, turbI]), np.atleast_3d(UfieldOrig[:, :, turbI]),
                 xTurb, yTurb, zTurb, turbI, upWindTurbines, model, layout, cSet, output)
-#        print(upWindTurbines)
+
         # add turbulence via sum of squares
         output.TI[turbI] = np.linalg.norm(TI_added + [TI_0])
-#        print(TI_added)
-#        print(output.TI[turbI])
+        wake = wakeModels.GAUSS(model, layout, cSet, output, turbI)
+#        print(dir(wake))
 
         # cycle through the grid generated above
         for xIdx in range(X.shape[2]):
@@ -114,21 +113,7 @@ def windPlant(model, layout, cSet):
                     if model.WakeModel == 2:
 
                         if X[zIdx, yIdx, xIdx] >= xTurb[turbI] - D[turbI]:
-                            c = wakeModels.GAUSS(X[zIdx, yIdx, xIdx], Y[zIdx, yIdx, xIdx], Z[zIdx, yIdx, xIdx], xTurb[turbI], yTurb[turbI], zTurb[turbI], 
-                                                           turbI, output.TI[turbI], UfieldOrig[zIdx, yIdx, xIdx], model, layout, cSet, output)
-                            velDef = c
-                        else:
-                            velDef = 0.0
-                        
-                        if(turbI == 0):
-                            print(c)
-
-                        # save value for wake merging 
-                        if Ufield[zIdx, yIdx, xIdx] != UfieldOrig[zIdx, yIdx, xIdx]:
-                            tmp = UfieldOrig[zIdx, yIdx, xIdx] - Ufield[zIdx, yIdx, xIdx]
-                        else:
-                            tmp = 0.0
-
+                            Uwake[zIdx, yIdx, xIdx] = wake.V(UfieldOrig[zIdx, yIdx, xIdx], X[zIdx, yIdx, xIdx]-xTurb[turbI], Y[zIdx, yIdx, xIdx]-yTurb[turbI], Z[zIdx, yIdx, xIdx]-zTurb[turbI])
 
                     # use FLORIS or Jensen wake model
                     elif model.WakeModel == 0 or model.WakeModel == 1:    
@@ -155,7 +140,7 @@ def windPlant(model, layout, cSet):
                             # FLORIS model
                             if model.WakeModel == 1:
                                 c = wakeModels.FLORIS(X[zIdx, yIdx, xIdx], Y[zIdx, yIdx, xIdx], Z[zIdx, yIdx, xIdx], yDisp, zDisp, xTurb[turbI], yTurb[turbI], zTurb[turbI], inputData, turbI)
-                                velDef = layout.windSpeed*2.*a[turbI]*c
+                                velDef = layout.windSpeed*(1-2.*a[turbI]*c)
 
                             # Jensen model
                             elif model.WakeModel == 0:
@@ -165,17 +150,7 @@ def windPlant(model, layout, cSet):
                         else:
                             velDef = 0.0
 
-                        # save value for wake merging
-                        if Ufield[zIdx, yIdx, xIdx] != UfieldOrig[zIdx, yIdx, xIdx]:
-                            tmp = UfieldOrig[zIdx, yIdx, xIdx] - Ufield[zIdx, yIdx, xIdx]
-                        else:
-                            tmp = 0.0
-
-                    # update the velocity field
-                    Ufield[zIdx, yIdx, xIdx] = UfieldOrig[zIdx, yIdx, xIdx] - velDef
-
-                    if tmp != 0.0:
-                        Ufield[zIdx, yIdx, xIdx] = utilities.combineWakes(UfieldOrig[zIdx, yIdx, xIdx], output.windSpeed[turbI], Ufield[zIdx, yIdx, xIdx], tmp, model)
+        Ufield = utilities.combineWakes(UfieldOrig, output.windSpeed[turbI], Ufield, Uwake, model)
 
     output.computePower(layout, cSet)
     return output

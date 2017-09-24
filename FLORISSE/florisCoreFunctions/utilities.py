@@ -3,6 +3,7 @@
 # ==============================================================================
 
 import numpy as np
+import copy
 from scipy.interpolate import griddata
 import scipy.io
 import florisCoreFunctions.wakeModels as wakeModels
@@ -305,27 +306,25 @@ def avgVelocity(X, Y, Z, Ufield, xTurb, yTurb, zTurb, D, turbI, model, cSet):
         return np.mean(utmp)
 
 
-def combineWakes(Uinf, Ueff, Ufield, tmp, model):
-
+def combineWakes(Uinf, Ueff, Ufield, Uwake, model):
     # this function allows for different wake superpositions
-
     # freestream linear superposition
     if model.combineWakes == 0:
-        vel = Uinf - ((Uinf - Ufield) + tmp)
+        vel = Uinf - ((Uinf - Uwake) + (Uinf - Ufield))
 
     # local velocity linear superposition
     elif model.combineWakes == 1:
-        vel = Uinf - ((Ueff - Ufield) + tmp)
+        vel = Uinf - ((Ueff - Uwake) + (Uinf - Ufield))
 
     # sum of squares freestream superposition
     elif model.combineWakes == 2:
-        vel = Uinf - np.sqrt((Uinf - Ufield)**2 + tmp**2)
+        vel = Uinf - np.sqrt((Uinf - Uwake)**2 + (Uinf - Ufield)**2)
 
     # sum of squares local velocity superposition
     elif model.combineWakes == 3:
-        vel = Ueff - np.sqrt((Ueff - Ufield)**2 + tmp**2)
+        vel = Ueff - np.sqrt((Ueff - Uwake)**2 + (Uinf - Ufield)**2)
     else:
-        vel = Ufield
+        raise NameError('No valid wake combination model was specified')
 
     return vel
 
@@ -356,7 +355,7 @@ def computeAddedTI(X, Y, Z, UfieldOrig, xTurb, yTurb, zTurb,
 
     for turbIdx in upwindTurbines:
 
-        Ufield = UfieldOrig
+        Uwake = copy.copy(UfieldOrig)
 
         # compute the x and y offset due to yaw
         yR = (D[turbIdx]/2.)*np.cos(np.radians(yaw[turbIdx]))
@@ -366,22 +365,14 @@ def computeAddedTI(X, Y, Z, UfieldOrig, xTurb, yTurb, zTurb,
         if dist > (model.TIdistance(D[turbIdx])):
             continue
 
+        wake = wakeModels.GAUSS(model, layout, cSet, output, turbIdx)
         # cycle through the previously defined X and Y domains
         xIdx = 0
         for yIdx in range(Y.shape[1]):
             for zIdx in range(Z.shape[0]):
-#                print(X[zIdx,yIdx,xIdx] >= 1.05*(xTurb[turbIdx]), X[zIdx,yIdx,xIdx], 1.05*(xTurb[turbIdx]))
-
                 # use GAUSS wake model
                 if model.WakeModel == 2:
-#                    c = wakeModels.GAUSS(X[zIdx, yIdx, xIdx], Y[zIdx, yIdx, xIdx], Z[zIdx, yIdx, xIdx], 
-#                                                           xTurb[turbIdx], yTurb[turbIdx], zTurb[turbIdx], 
-#                                                           turbIdx, output.TI[turbIdx], UfieldOrig[zIdx, yIdx, xIdx], model, layout, cSet, output)
-                    c = wakeModels.GAUSS(X[zIdx, yIdx, xIdx], Y[zIdx, yIdx, xIdx], Z[zIdx, yIdx, xIdx], 
-                                                           xTurb[turbIdx], yTurb[turbIdx], zTurb[turbIdx], 
-                                                           turbIdx, TI_0, UfieldOrig[zIdx, yIdx, xIdx], model, layout, cSet, output)
-                    velDef = c
-#                    print(c)
+                    Uwake[zIdx, yIdx, xIdx] = wake.V(UfieldOrig[zIdx, yIdx, xIdx], X[zIdx, yIdx, xIdx]-xTurb[turbI], Y[zIdx, yIdx, xIdx]-yTurb[turbI], Z[zIdx, yIdx, xIdx]-zTurb[turbI])
 
                 # use FLORIS or Jensen wake model
                 elif model.WakeModel == 0 or model.WakeModel == 1:    
@@ -424,13 +415,11 @@ def computeAddedTI(X, Y, Z, UfieldOrig, xTurb, yTurb, zTurb,
                     else:
                         velDef = 0.0
 
-                Ufield[zIdx, yIdx, xIdx] = UfieldOrig[zIdx, yIdx, xIdx] - velDef
-
         # compute percent overlap
         if turbIdx == turbI:
             AreaOverlap[turbIdx] = 0.0
         else:
-            AreaOverlap[turbIdx] = computeOverlap(Ufield, UfieldOrig)
+            AreaOverlap[turbIdx] = computeOverlap(Uwake, UfieldOrig)
 
         # Niayifar and Porte-Agel, "A new analytical model for wind farm power prediction", 2015
         if turbI == turbIdx or xTurb[turbI] < xTurb[turbIdx]:

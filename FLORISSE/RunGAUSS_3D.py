@@ -1,16 +1,17 @@
 import numpy as np
 from pandas import read_csv
+# Importing imp causes Spyder to automatically re-import changed modules
 import imp
 
 import florisCoreFunctions.main as main
 import visualizationTools.MPLVisualizations as MPLVisualizations
-import inputClasses.layout2
+import inputClasses.layout2 as layoutWindFarm
 import inputClasses.controlSettings
 import inputClasses.modelData
 
 
 model = inputClasses.modelData.modelData(2, 2)
-layout = inputClasses.layout2.layout(True, False)
+layout = layoutWindFarm.layout(True, False)
 cSet = inputClasses.controlSettings.controlSet(layout)
 # cSet.yawAngles = [0, 0, 0, 0]
 
@@ -21,8 +22,8 @@ for i in range(layout.nTurbs):
     print(output.power[i])
 
 print(np.sum(output.power))
-print(output.Cp)
-print(output.Ct)
+#print(output.Cp)
+#print(output.Ct)
 
 ##%% Second cell
 ## =============================================================================================

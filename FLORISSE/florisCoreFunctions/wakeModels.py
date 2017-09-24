@@ -1,169 +1,195 @@
-## Different Wake models
+# Wake models
 
 import numpy as np
-#import florisCoreFunctions.utilities as utilities
-
-#==================================================================FUNCTIONS============================================================================
-# 1. Jimenez - empirical calculation used to determine the wake deflection due to yaw 
-# 2. Jensen - original linear wind plant model that uses a constant velocity in the wake. 
-# 3. FLORIS - linear wake model that uses three wake zones (near, far, and mixing) to define the wake.
-# 4. GAUSS - Gaussian wake based on self-similarity theory 
-# ======================================================================================================================================================
-
-# =================================================================WAKE MODELS=======================================================
 
 
-def Jimenez(yaw, Ct, kd, x, D, ad, bd):
+class Jimenez:
+    """This class instantiates an object for computing the downwind
+    deflection of a wake according to Jensen et al"""
 
-    # this function defines the angle at which the wake deflects in relation to the yaw of the turbine
-    # this is coded as defined in the Jimenez et. al. paper
+    def __init__(self, yaw, Ct, D, model):
+        # Extract the model properties from model and set them in the class
+        self.kd = model.kd
+        self.ad = model.ad
+        self.bd = model.bd
+        self.yaw = yaw
+        self.Ct = Ct
+        self.D = D
 
-    # angle of deflection
-    xi_init = 1./2.*np.cos(yaw)*np.sin(yaw)*Ct
-    xi = (xi_init)/(( 1 + 2*kd*(x/D) )**2)
+        # this function defines the angle at which the wake deflects in
+        # relation to the yaw of the turbine this is coded as defined in the
+        # Jimenez et. al. paper
 
-    # yaw displacement
-    yYaw_init = ( xi_init * ( 15*((2*kd*x/D) + 1)**4. + xi_init**2. ) / ( (30*kd/D)*(2*kd*x/D + 1)**5. ) ) - ( xi_init*D*(15 + xi_init**2.) / (30*kd) )
+        # angle of deflection
+        self.xi_init = 1./2.*np.cos(self.yaw)*np.sin(self.yaw)*self.Ct
+        # xi = the angle at location x, this expression is not further used,
+        # yYaw uses the second order taylor expansion of xi.
+        # xi = (xi_init)/(( 1 + 2*kd*(x/D) )**2)
 
-    # corrected yaw displacement with lateral offset
-    yYaw = yYaw_init + ( ad + bd*x )
+    def displ(self, x):
+        # yaw displacement
+        yYaw = ((self.xi_init * (15*((2*self.kd*x/self.D) + 1)**4 +
+                     self.xi_init**2)/((30*self.kd/self.D)*(2*self.kd*x /
+                     self.D + 1)**5.)) - (self.xi_init*self.D*(15 +
+                     self.xi_init**2.) / (30*self.kd)))
 
-    return yYaw
-
-
-def Jensen(inputData, turbI, X, xTurb):
-
-    # compute the velocity deficit based on the classic Jensen/Park model, see Jensen 1983
-    D = inputData['rotorDiameter'][turbI]
-    ke = inputData['wakeExpansion'][turbI]
-    c = (D/(2*ke*(X-xTurb) + D))**2
-
-    return c
-
-
-def FLORIS(X, Y, Z, yDisp, zDisp, xTurb, yTurb, zTurb, inputData, turbI):
-
-    # compute the velocity deficit based on wake zones, see Gebraad et. al. 2016
-
-    # wake parameters
-    ke = inputData['wakeExpansion'][turbI]
-    MU = inputData['MU']
-    me = inputData['me']
-    aU = inputData['aU']
-    bU = inputData['bU']
-    D = inputData['rotorDiameter'][turbI]
-    yaw = inputData['yawAngles'][turbI]
-
-    # distance from wake centerline
-    rY = abs( Y-(yTurb+yDisp) )
-    rZ = abs( Z-(zTurb+zDisp) )        
-    dx = X-xTurb
-
-    # wake zone diameters
-    d1 = ( D + 2*ke*me[0]*dx )/2.
-    d2 = ( D + 2*ke*me[1]*dx )/2.
-    d3 = ( D + 2*ke*me[2]*dx )/2.
-
-    # defining wake parameters
-    mU_0 = MU[0] / (np.cos( np.radians(aU + bU*yaw) ))
-    mU_1 = MU[1] / (np.cos( np.radians(aU + bU*yaw) ))
-    mU_2 = MU[2] / (np.cos( np.radians(aU + bU*yaw) ))
-
-    # near wake zone
-    if rY <= d1:
-        c = ( D / (D + (2*ke*mU_0*dx)) )**2
-    # far wake zone
-    elif rY <= d2:
-        c = ( D / (D + (2*ke*mU_1*dx)) )**2
-    # mixing zone
-    else:
-        c = ( D / (D + (2*ke*mU_2*dx)) )**2
-
-    return c
+        # corrected yaw displacement with lateral offset
+        return yYaw + (self.ad + self.bd*x)
 
 
-def GAUSS(X, Y, Z, xTurb, yTurb, zTurb,
-          turbI, TI, Uloc, model, layout, cSet, output):
+class Jensen:
+    """This class instantiates an object for computing the wake velocity
+    profile at some point Y, Z at downwind position X accorindg to Jensen"""
 
-    # new analytical wake model based on self-similarity and Gaussian wake
-    # model Gaussian Analytical U* Self-Similar Wake model
+    def __init__(self, model, layout, cSet, output, turbI):
+        self.ke = model.wakeExpansion
+        self.R = layout.turbines[turbI].rotorDiameter/2
+        self.aI = output.aI[turbI]
 
-    # input data
-    Uinf = layout.windSpeed
-    D = layout.turbines[turbI].rotorDiameter
-    veer = layout.veer
+    def V(self, U, x, y, z):
 
-    ka = model.ka
-    kb = model.kb
-    alpha = model.alpha
-    beta = model.beta
-    ad = model.ad
-    bd = model.bd
-    aT = model.aT
-    bT = model.bT
+        # compute the velocity based on the classic Jensen/Park model,
+        # see Jensen 1983
+        c = (self.R/(self.ke*(x) + self.R))**2
+        v = U*(1-2.*self.aI*c)
+        return v
 
-    yaw = cSet.yawAngles[turbI]
-    tilt = cSet.tiltAngles[turbI]
+    def B(self, x, y, z):
+        return np.hypot(y, z) < (self.ke*x + self.R)
 
-    Ct = output.Ct[turbI]
 
-    # sign convention reversed in literature
-    yaw = -1*yaw
+class FLORIS:
+    """This class instantiates an object for computing the wake velocity
+    profile at some point Y, Z at downwind position X according to the
+    FLORIS model developed by gebraad et al."""
 
-    # initial velocity deficits
-    uR = Uloc*Ct*np.cos(yaw*np.pi/180.)/(2.*(1-np.sqrt(1-(Ct*np.cos(yaw*np.pi/180.)))))
-    u0 = Uloc*np.sqrt(1-Ct)
+    def __init__(self, model, layout, cSet, output, turbI):
+        self.ke = model.wakeExpansion
+        self.me = np.array(model.me)
 
-    # initial Gaussian wake expansion
-    sigma_z0 = D*0.5*np.sqrt(uR/(Uloc + u0))
-    sigma_y0 = sigma_z0*(np.cos((yaw)*np.pi/180.))*(np.cos(veer*np.pi/180.))
+        self.R = layout.turbines[turbI].rotorDiameter/2
+        self.aI = output.aI[turbI]
+        self.yaw = cSet.yawAngles[turbI]
 
-    # quantity that determines when the far wake starts
-    x0 = D*(np.cos(yaw*np.pi/180.)*(1+np.sqrt(1-Ct*np.cos(yaw*np.pi/180.)))) / (np.sqrt(2)*(4*alpha*TI + 2*beta*(1-np.sqrt(1-Ct)))) + xTurb
+        # Adjust the expansion coefficient MU for the yaw angle
+        self.MU = (np.array(model.MU) /
+                   (np.cos(np.radians(model.aU + model.bU*self.yaw))))
 
-    # wake expansion parameters
-    ky = ka*TI + kb
-    kz = ka*TI + kb
+    def V(self, U, x, y, z):
+        # compute the velocity based on the classic Floris model,
+        # see Gebraad et al
+        r = np.hypot(y, z)
 
-    C0 = 1 - u0/Uinf
-    M0 = C0*(2-C0)
-    E0 = C0**2 - 3*np.exp(1./12.)*C0 + 3*np.exp(1./3.)
+        # wake zone radii
+        rZones = self.R + self.ke*self.me*x
 
-    # yaw parameters (skew angle and distance from centerline)
-    theta_c0 = 2*((0.3*yaw*np.pi/180.)/np.cos(yaw*np.pi/180.))*(1-np.sqrt(1-Ct*np.cos(yaw*np.pi/180.)))  # skew angle  
-    theta_z0 = 2*((0.3*tilt*np.pi/180.)/np.cos(tilt*np.pi/180.))*(1-np.sqrt(1-Ct*np.cos(tilt*np.pi/180.)))   # skew angle  
-    delta0 = np.tan(theta_c0)*(x0-xTurb)
-    delta_z0 = np.tan(theta_z0)*(x0-xTurb)
+        # defining wake parameters
+        cZones = (self.R/(self.R + self.ke*self.MU*x))**2
 
-    # COMPUTE VELOCITY DEFICIT
-    yR = Y - yTurb
-    xR = yR*np.tan(yaw*np.pi/180.) + xTurb
+        c = (((r <= rZones[2]) ^ (r < rZones[1]))*cZones[2] +
+             ((r <= rZones[1]) ^ (r < rZones[0]))*cZones[1] +
+             (r <= rZones[0])*cZones[0])
+        return U*(1-2.*self.aI*c)
 
-    if X > xR:
+    def B(self, x, y, z):
+        return np.hypot(y, z) < (self.R + self.ke*self.me[2]*x)
 
-        if X >= (x0):
-            sigma_y = ky*( X - x0 ) + sigma_y0
-            sigma_z = kz*( X - x0 ) + sigma_z0
-            ln_deltaNum = (1.6+np.sqrt(M0))*(1.6*np.sqrt(sigma_y*sigma_z/(sigma_y0*sigma_z0)) - np.sqrt(M0))
-            ln_deltaDen = (1.6-np.sqrt(M0))*(1.6*np.sqrt(sigma_y*sigma_z/(sigma_y0*sigma_z0)) + np.sqrt(M0))
-            delta = delta0 + (theta_c0*E0/5.2)*np.sqrt(sigma_y0*sigma_z0/(ky*kz*M0))*np.log(ln_deltaNum/ln_deltaDen) + ( ad + bd*(X-xTurb) )  
-            deltaZ = delta_z0 + (theta_z0*E0/5.2)*np.sqrt(sigma_y0*sigma_z0/(ky*kz*M0))*np.log(ln_deltaNum/ln_deltaDen) + ( aT + bT*(X-xTurb) )
-        else: 
-            sigma_y = (((x0-xR)-(X-xR))/(x0-xR))*0.501*D*np.sqrt(Ct/2.) + ((X-xR)/(x0-xR))*sigma_y0
-            sigma_z = (((x0-xR)-(X-xR))/(x0-xR))*0.501*D*np.sqrt(Ct/2.) + ((X-xR)/(x0-xR))*sigma_z0
-            delta = ((X-xR)/(x0-xR))*delta0 + ( ad + bd*(X-xTurb) ) 
-            deltaZ = ((X-xR)/(x0-xR))*delta_z0 + ( aT + bT*(X-xTurb) )
 
-        a = (np.cos(veer*np.pi/180.)**2)/(2*sigma_y**2) + (np.sin(veer*np.pi/180.)**2)/(2*sigma_z**2)
-        b = -(np.sin(2*veer*np.pi/180))/(4*sigma_y**2) + (np.sin(2*veer*np.pi/180.))/(4*sigma_z**2)
-        c = (np.sin(veer*np.pi/180.)**2)/(2*sigma_y**2) + (np.cos(veer*np.pi/180.)**2)/(2*sigma_z**2)
-        totGauss = np.exp( -( a*((Y-yTurb)-delta)**2 - 2*b*((Y-yTurb)-delta)*((Z-zTurb)-deltaZ) + c*((Z-zTurb)-deltaZ)**2 ) ) 
+class GAUSS:
+    """This class instantiates an object for computing the wake velocity
+    profile at some point Y, Z at downwind position X according to the
+    Porte-Age model as adapted by Jennifer Anonni"""
 
-        velDef = Uloc*(1-np.sqrt(1-((Ct*np.cos(yaw*np.pi/180.))/(8.0*sigma_y*sigma_z/D**2)) ) )*totGauss
+    def __init__(self, model, layout, cSet, output, turbI):
+        self.ka = model.ka
+        self.kb = model.kb
+        self.alpha = model.alpha
+        self.beta = model.beta
+        self.ad = model.ad
+        self.bd = model.bd
+        self.aT = model.aT
+        self.bT = model.bT
 
-    else:
-        velDef = 0.0
+        self.veer = layout.veer
+        self.D = layout.turbines[turbI].rotorDiameter
+        self.Uinf = layout.windSpeed
+        self.aI = output.aI[turbI]
+        self.Ct = output.Ct[turbI]
+        self.TI = output.TI[turbI]
+        self.yaw = -cSet.yawAngles[turbI]  # sign reversed in literature
+        self.tilt = cSet.tiltAngles[turbI]
 
-    c = velDef
+    def V(self, U, x, y, z):
 
-    return c
+        # initial velocity deficits
+        uR = (U*self.Ct*np.cos(self.yaw*np.pi/180.) /
+              (2.*(1-np.sqrt(1-(self.Ct*np.cos(self.yaw*np.pi/180.))))))
+        u0 = U*np.sqrt(1-self.Ct)
+
+        # initial Gaussian wake expansion
+        sigma_z0 = self.D*0.5*np.sqrt(uR/(U + u0))
+        sigma_y0 = (sigma_z0*(np.cos((self.yaw)*np.pi/180.)) *
+                    (np.cos(self.veer*np.pi/180.)))
+
+        # quantity that determines when the far wake starts
+        x0 = (self.D*(np.cos(self.yaw*np.pi/180.) *
+                      (1+np.sqrt(1-self.Ct*np.cos(self.yaw*np.pi/180.)))) /
+              (np.sqrt(2)*(4*self.alpha*self.TI +
+                           2*self.beta*(1-np.sqrt(1-self.Ct)))))
+
+        # wake expansion parameters
+        ky = self.ka*self.TI + self.kb
+        kz = self.ka*self.TI + self.kb
+
+        C0 = 1 - u0/self.Uinf
+        M0 = C0*(2-C0)
+        E0 = C0**2 - 3*np.exp(1./12.)*C0 + 3*np.exp(1./3.)
+
+        # yaw parameters (skew angle and distance from centerline)
+        theta_c0 = (2*((.3*self.yaw*np.pi/180.)/np.cos(self.yaw*np.pi/180.)) *
+                    (1-np.sqrt(1-self.Ct*np.cos(self.yaw*np.pi/180.))))
+        theta_z0 = (2*((.3*self.tilt*np.pi/180.)/np.cos(self.tilt*np.pi/180.))*
+                    (1-np.sqrt(1-self.Ct*np.cos(self.tilt*np.pi/180.))))
+        delta0 = np.tan(theta_c0)*(x0)
+        delta_z0 = np.tan(theta_z0)*(x0)
+
+        # COMPUTE VELOCITY DEFICIT
+        xR = y*np.tan(self.yaw*np.pi/180.)
+
+        if x > xR:
+            if x >= (x0):
+                sigma_y = ky*(x - x0) + sigma_y0
+                sigma_z = kz*(x - x0) + sigma_z0
+                ln_deltaNum = ((1.6+np.sqrt(M0))*(1.6*np.sqrt(sigma_y*sigma_z /
+                               (sigma_y0*sigma_z0)) - np.sqrt(M0)))
+                ln_deltaDen = ((1.6-np.sqrt(M0))*(1.6*np.sqrt(sigma_y*sigma_z /
+                               (sigma_y0*sigma_z0)) + np.sqrt(M0)))
+                delta = (delta0 + (theta_c0*E0/5.2)*np.sqrt(sigma_y0 *
+                         sigma_z0/(ky*kz*M0))*np.log(ln_deltaNum/ln_deltaDen) +
+                         (self.ad + self.bd*x))
+                deltaZ = (delta_z0 + (theta_z0*E0/5.2)*np.sqrt(sigma_y0 *
+                          sigma_z0/(ky*kz*M0))*np.log(ln_deltaNum/ln_deltaDen)+
+                          (self.aT + self.bT*x))
+            else:
+                sigma_y = ((((x0-xR)-(x-xR))/(x0-xR))*0.501*self.D *
+                           np.sqrt(self.Ct/2.) + ((x-xR)/(x0-xR))*sigma_y0)
+                sigma_z = ((((x0-xR)-(x-xR))/(x0-xR))*0.501*self.D *
+                           np.sqrt(self.Ct/2.) + ((x-xR)/(x0-xR))*sigma_z0)
+                delta = ((x-xR)/(x0-xR))*delta0 + (self.ad + self.bd*x)
+                deltaZ = ((x-xR)/(x0-xR))*delta_z0 + (self.aT + self.bT*x)
+
+            a = ((np.cos(self.veer*np.pi/180.)**2)/(2*sigma_y**2) +
+                 (np.sin(self.veer*np.pi/180.)**2)/(2*sigma_z**2))
+            b = (-(np.sin(2*self.veer*np.pi/180))/(4*sigma_y**2) +
+                 (np.sin(2*self.veer*np.pi/180.))/(4*sigma_z**2))
+            c = ((np.sin(self.veer*np.pi/180.)**2)/(2*sigma_y**2) +
+                 (np.cos(self.veer*np.pi/180.)**2)/(2*sigma_z**2))
+            totGauss = (np.exp(-(a*(y-delta)**2 - 2*b*(y-delta)*(z-deltaZ) +
+                        c*(z-deltaZ)**2)))
+
+            Unew = (U-(U*(1-np.sqrt(1-((self.Ct*np.cos(self.yaw*np.pi/180.)) /
+                    (8.0*sigma_y*sigma_z/self.D**2)))))*totGauss)
+        else:
+            Unew = U
+
+        return Unew
