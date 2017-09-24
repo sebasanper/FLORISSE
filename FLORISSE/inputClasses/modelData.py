@@ -34,7 +34,7 @@ class modelData:
     rotorPts = 16
     avgCube = False
 
-    def __init__(self, WakeModel, combineWakes):
+    def __init__(self, WakeModel, combineWakes, deflectionModel):
         # 0 = Jensen, 1 = FLORIS, 2 = Gaussian
         self.WakeModel = WakeModel
 
@@ -42,6 +42,9 @@ class modelData:
         # 2 = sum of squares freestream, 3 = sum of squares local velocity
         self.combineWakes = combineWakes
 
+        # 0 = Jimenez, 1 = Porte Agel
+        self.deflectionModel = deflectionModel
+        
     # threshold distance of turbines to include in "added turbulence"
     def TIdistance(self, D):
         return 15*D

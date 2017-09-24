@@ -7,7 +7,7 @@ from Turbines.NREL5MW.NREL5MW import NREL5MWTurbine
 class layout:
     """A windfarm layout with 4 NREL5MW turbines"""
     # set turbine locations - example 2x2 wind farm
-    turbineX = [0, 250, 0, 250]
+    turbineX = [0, 500, 0, 500]
     turbineY = [0, 0, 500, 500]
 
     # Atmospheric Conditions

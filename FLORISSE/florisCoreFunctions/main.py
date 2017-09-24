@@ -12,6 +12,22 @@ import outputClasses.basic
 
 def windPlant(model, layout, cSet):
 
+    if model.WakeModel == 0:
+        wakeVel = wakeModels.Jensen
+    elif model.WakeModel == 1:
+        wakeVel = wakeModels.FLORIS
+    elif model.WakeModel == 2:
+        wakeVel = wakeModels.GAUSS
+    else:
+        raise NameError('No valid wake velocity model was specified')
+
+    if model.deflectionModel == 0:
+        deflClas = wakeModels.jimenezDeflection
+    elif model.deflectionModel == 1:
+        deflClas = wakeModels.porteAgelDeflection
+    else:
+        raise NameError('No valid wake velocity model was specified')
+
     output = outputClasses.basic.output(layout)
 
     # this function uses an engineering model to compute the time
@@ -21,15 +37,10 @@ def windPlant(model, layout, cSet):
     # wake parameters
     TI_0 = layout.turbulenceIntensity
     D = [turb.rotorDiameter for turb in layout.turbines]
-    ke = model.wakeExpansion
-    kd = model.wakeDeflection
-    ad = model.ad  # lateral wake deflection a + b*X
-    bd = model.bd  # lateral wake deflection a + b*X
     rotorPts = int(np.round(np.sqrt(model.rotorPts)))
 
     # turbine operation
     yaw = cSet.yawAngles
-    tilt = cSet.tiltAngles
 
     xTurb = layout.turbineX  # x locations of the turbines
     yTurb = layout.turbineY  # y locations
@@ -42,9 +53,11 @@ def windPlant(model, layout, cSet):
     Yt = np.linspace(yTurb[0]-(D[0]/2), yTurb[0]+(D[0]/2), rotorPts)
     Zt = np.linspace(zTurb[0]-(D[0]/2), zTurb[0]+(D[0]/2), rotorPts)
 
-    X = np.zeros((len(Zt), len(Yt), len(Xt)))
-    Y = np.zeros((len(Zt), len(Yt), len(Xt)))
-    Z = np.zeros((len(Zt), len(Yt), len(Xt)))
+    X = np.zeros([len(Zt), len(Yt), len(Xt)])
+    Y = np.zeros([len(Zt), len(Yt), len(Xt)])
+    Z = np.zeros([len(Zt), len(Yt), len(Xt)])
+    # Save the flowfield prediction of every turbine in Utp
+    Utp = np.zeros([len(Zt), len(Yt), len(Xt), layout.nTurbs])
 
     for k in range(len(Xt)):
         Yt = np.linspace(yTurb[k]-(D[k]/2), yTurb[k]+(D[k]/2), rotorPts)
@@ -66,8 +79,6 @@ def windPlant(model, layout, cSet):
     UfieldOrig = copy.copy(Ufield)
 
     for turbI in sortedTurbIds:
-        Uwake = copy.copy(UfieldOrig)
-
         # compute effective wind speed at each turbine
         # take the average across the rotor disk
         output.windSpeed[turbI] = utilities.avgVelocity(X, Y, Z, Ufield,
@@ -89,71 +100,33 @@ def windPlant(model, layout, cSet):
         output.aI[turbI] = (0.5 / np.cos(yaw[turbI] * np.pi / 180.)) * (1 -
                 np.sqrt(1-output.Ct[turbI]*np.cos(yaw[turbI]*np.pi/180)))
 
-        # compute the x offset due to turbine rotation
-        xR = (D[turbI]/2.)*np.sin(np.radians(yaw[turbI])) + (D[turbI]/2.)*np.sin(np.radians(tilt[turbI]))
-
         # compute the initial added turbulence at the rotor
         upWindTurbines = sortedTurbIds[:sortedTurbIds.index(turbI)]
-        
-        TI_added, TIidx, AreaOverlap = utilities.computeAddedTI(
-                np.atleast_3d(X[:, :, turbI]), np.atleast_3d(Y[:, :, turbI]),
-                np.atleast_3d(Z[:, :, turbI]), np.atleast_3d(UfieldOrig[:, :, turbI]),
-                xTurb, yTurb, zTurb, turbI, upWindTurbines, model, layout, cSet, output)
+
+        TI_added = utilities.computeAddedTI(np.atleast_3d(UfieldOrig[:, :, turbI]), xTurb, yTurb, zTurb,
+         Utp[:,:,turbI,:], turbI, upWindTurbines, model, layout, output)
 
         # add turbulence via sum of squares
         output.TI[turbI] = np.linalg.norm(TI_added + [TI_0])
-        wake = wakeModels.GAUSS(model, layout, cSet, output, turbI)
-#        print(dir(wake))
+
+        wake = wakeVel(model, layout, cSet, output, turbI)
+        wakeDefl = deflClas(model, layout, cSet, output, turbI)
 
         # cycle through the grid generated above
         for xIdx in range(X.shape[2]):
+            yDisp, zDisp = wakeDefl.displ(X[0, 0, xIdx])
             for yIdx in range(Y.shape[1]):
                 for zIdx in range(Z.shape[0]):
-                    # use Gaussian wake model
-                    if model.WakeModel == 2:
+                    if (X[zIdx, yIdx, xIdx] >= xTurb[turbI] - D[turbI] and
+                            wake.B(X[zIdx, yIdx, xIdx]-xTurb[turbI], Y[zIdx, yIdx, xIdx]-yTurb[turbI]-yDisp, Z[zIdx, yIdx, xIdx]-zTurb[turbI]-zDisp)):
+                        Utp[zIdx, yIdx, xIdx, turbI] = wake.V(UfieldOrig[zIdx, yIdx, xIdx], X[zIdx, yIdx, xIdx]-xTurb[turbI], Y[zIdx, yIdx, xIdx]-yTurb[turbI]-yDisp, Z[zIdx, yIdx, xIdx]-zTurb[turbI]-zDisp)
 
-                        if X[zIdx, yIdx, xIdx] >= xTurb[turbI] - D[turbI]:
-                            Uwake[zIdx, yIdx, xIdx] = wake.V(UfieldOrig[zIdx, yIdx, xIdx], X[zIdx, yIdx, xIdx]-xTurb[turbI], Y[zIdx, yIdx, xIdx]-yTurb[turbI], Z[zIdx, yIdx, xIdx]-zTurb[turbI])
-
-                    # use FLORIS or Jensen wake model
-                    elif model.WakeModel == 0 or model.WakeModel == 1:    
-                        if (X[zIdx, yIdx, xIdx] > (xTurb[turbI]-abs(xR)) and 
-                           Y[zIdx, yIdx, xIdx] > (yTurb[turbI] - 2*D[turbI]) and 
-                           Y[zIdx, yIdx, xIdx] < (yTurb[turbI] + 2*D[turbI]) and
-                           Z[zIdx, yIdx, xIdx] > (zTurb[turbI] - 2*D[turbI]) and
-                           Z[zIdx, yIdx, xIdx] < (zTurb[turbI] + 2*D[turbI])):
-                            yDisp = wakeModels.Jimenez(np.radians(yaw[turbI]), Ct[turbI], kd[turbI], X[zIdx, yIdx, xIdx]-xTurb[turbI], D[turbI], ad, bd)
-                            zDisp = wakeModels.Jimenez(np.radians(tilt[turbI]), Ct[turbI], kd[turbI], X[zIdx, yIdx, xIdx]-xTurb[turbI], D[turbI], ad, bd)
-                        else:
-                            yDisp = 0.0
-                            zDisp = 0.0
-                            continue
-
-                        # define the edges of the wake
-                        rWake = ke[turbI]*(X[zIdx, yIdx, xIdx]-(xTurb[turbI]-xR)) + (D[turbI]/2)
-                        rCenterY = yTurb[turbI] + yDisp
-                        rCenterZ = zTurb[turbI] + zDisp
-
-                        rtmp = np.sqrt( (Y[zIdx, yIdx, xIdx] - rCenterY)**2 + (Z[zIdx, yIdx, xIdx] - rCenterZ)**2 )
-                        if (X[zIdx, yIdx, xIdx] >= xTurb[turbI] and rtmp <= rWake):
-
-                            # FLORIS model
-                            if model.WakeModel == 1:
-                                c = wakeModels.FLORIS(X[zIdx, yIdx, xIdx], Y[zIdx, yIdx, xIdx], Z[zIdx, yIdx, xIdx], yDisp, zDisp, xTurb[turbI], yTurb[turbI], zTurb[turbI], inputData, turbI)
-                                velDef = layout.windSpeed*(1-2.*a[turbI]*c)
-
-                            # Jensen model
-                            elif model.WakeModel == 0:
-                                c = wakeModels.Jensen(inputData, turbI, X[zIdx, yIdx, xIdx], xTurb[turbI])
-                                velDef = layout.windSpeed*2.*a[turbI]*c
-
-                        else:
-                            velDef = 0.0
-
-        Ufield = utilities.combineWakes(UfieldOrig, output.windSpeed[turbI], Ufield, Uwake, model)
+        Ufield = utilities.combineWakes(UfieldOrig, output.windSpeed[turbI],
+                                        Ufield, Utp[:, :, :, turbI], model)
 
     output.computePower(layout, cSet)
     return output
+
 
 def visualizeOutput():
         # ============================================================

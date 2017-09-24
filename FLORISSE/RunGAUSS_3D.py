@@ -10,7 +10,7 @@ import inputClasses.controlSettings
 import inputClasses.modelData
 
 
-model = inputClasses.modelData.modelData(2, 2)
+model = inputClasses.modelData.modelData(2, 2, 1)
 layout = layoutWindFarm.layout(True, False)
 cSet = inputClasses.controlSettings.controlSet(layout)
 # cSet.yawAngles = [0, 0, 0, 0]
