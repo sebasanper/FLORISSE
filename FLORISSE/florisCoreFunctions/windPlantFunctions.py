@@ -39,19 +39,19 @@ def sweptAreaGrid(model, layout, xTurb, yTurb, zTurb):
     D = [turb.rotorDiameter for turb in layout.turbines]
     rotorPts = int(np.round(np.sqrt(model.rotorPts)))
 
-    X = np.zeros([rotorPts, rotorPts, len(xTurb)])
+    X = np.zeros([len(xTurb), rotorPts, rotorPts])
     Y = np.zeros(X.shape)
     Z = np.zeros(X.shape)
 
     Xt = xTurb
-    for k in range(len(Xt)):
-        Yt = np.linspace(yTurb[k]-(D[k]/2), yTurb[k]+(D[k]/2), rotorPts)
-        Zt = np.linspace(zTurb[k]-(D[k]/2), zTurb[k]+(D[k]/2), rotorPts)
+    for i in range(len(Xt)):
+        Yt = np.linspace(yTurb[i]-(D[i]/2), yTurb[i]+(D[i]/2), rotorPts)
+        Zt = np.linspace(zTurb[i]-(D[i]/2), zTurb[i]+(D[i]/2), rotorPts)
         for j in range(len(Yt)):
-            for i in range(len(Zt)):
-                X[i, j, k] = Xt[k]
+            for k in range(len(Zt)):
+                X[i, j, k] = Xt[i]
                 Y[i, j, k] = Yt[j]
-                Z[i, j, k] = Zt[i]
+                Z[i, j, k] = Zt[k]
 
     return X, Y, Z
 
@@ -71,18 +71,11 @@ def avgVelocity(X, Y, Z, Ufield, xTurb, yTurb, zTurb, D, turbI, model, cSet):
     yaw = cSet.yawAngles[turbI]
     rotorPts = int(np.round(np.sqrt(model.rotorPts)))
 
-    xCenter = xTurb
     zR = (D/2.)*np.cos(np.radians(tilt))
     yR = (D/2.)*np.cos(np.radians(yaw))
 
     yPts = np.linspace(yTurb-yR, yTurb+yR, rotorPts)
     zPts = np.linspace(zTurb-zR, zTurb+zR, rotorPts)
-
-    # this function averages the velocity across the whole rotor
-    # number of points in the X and Y domain
-    nSamplesX = X.shape[2]
-    nSamplesY = Y.shape[1]
-    nSamplesZ = Z.shape[0]
 
     # define the rotor plane along with the points associated with the rotor
     Xtmp = []
@@ -90,11 +83,9 @@ def avgVelocity(X, Y, Z, Ufield, xTurb, yTurb, zTurb, D, turbI, model, cSet):
     Ztmp = []
     Utmp = []
 
-    # if X and Y are large, resample the domains to only include points that
-    # we care about. This significantly speeds up the process
-    for i in range(nSamplesZ):
-        for j in range(nSamplesY):
-            for k in range(nSamplesX):
+    for i in range(X.shape[0]):
+        for j in range(Y.shape[1]):
+            for k in range(Z.shape[2]):
                 if X[i, j, k] >= (xTurb-D/4.) and X[i, j, k] <= (xTurb+D/4.):
                     dist = np.hypot(Y[i, j, k] - yTurb, Z[i, j, k] - zTurb)
                     if dist <= (D/2.):
@@ -115,7 +106,7 @@ def avgVelocity(X, Y, Z, Ufield, xTurb, yTurb, zTurb, D, turbI, model, cSet):
             dist = np.hypot(yPts[i] - yTurb, zPts[j] - zTurb)
             if dist <= (D/2.):
                 utmp.append(griddata((Xtmp, Ytmp, Ztmp), Utmp,
-                            (xCenter, yPts[i], zPts[j]), method='nearest'))
+                            (xTurb, yPts[i], zPts[j]), method='nearest'))
 
     if model.avgCube:
         return np.mean(utmp**3)**(1./3.)
@@ -169,7 +160,7 @@ def computeAddedTI(UfieldOrig, xTurb, yTurb, zTurb, Utp,
 
     for turbIdx in upwindTurbines:
         if (np.hypot(xTurb[turbI]-xTurb[turbIdx],
-                yTurb[turbI]-yTurb[turbIdx])>(model.TIdistance(D[turbIdx]))):
+            yTurb[turbI]-yTurb[turbIdx])>(model.TIdistance(D[turbIdx]))):
             continue
 
         # compute percent overlap
@@ -178,9 +169,10 @@ def computeAddedTI(UfieldOrig, xTurb, yTurb, zTurb, Utp,
 
         # Niayifar and Porte-Agel, "A new analytical model for wind farm power
         # prediction", 2015
+        # TODO: discuss with Jen, originial uses TI_0 instead of TI_turb
         if (xTurb[turbI]-xTurb[turbIdx]) > 0:
             TI_calc[turbIdx] = (model.TIa*(output.aI[turbIdx]**model.TIb) *
-                                (layout.turbulenceIntensity**model.TIc) *
+                                (layout.TI_0**model.TIc) *
                                 (((xTurb[turbI]-xTurb[turbIdx]) /
                                  D[turbIdx])**(model.TId)))
         else:
@@ -210,16 +202,3 @@ def computeOverlap(Ufield, UfieldOrig):
 
     perOverlap = count/numPts
     return perOverlap
-
-
-def computePower(self):
-    yaw = self.cSet.yawAngles
-    tilt = self.cSet.tiltAngles
-
-    for i in range(self.layout.nTurbs):
-        turb = self.layout.turbines[i]
-        Cptmp = (self.Cp[i]*(np.cos(yaw[i]*np.pi/180.)**turb.pP) *
-                 (np.cos((tilt[i])*np.pi/180.)**turb.pT))
-        self.power[i] = (.5*self.layout.airDensity *
-                         (np.pi*(turb.rotorDiameter/2)**2)*Cptmp *
-                         turb.generatorEfficiency*self.windSpeed[i]**3)

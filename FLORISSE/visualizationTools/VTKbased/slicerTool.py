@@ -20,6 +20,7 @@ class slicerInterface(QWidget):
                                     self.reader, self.lut, self.scalar_range)
         self.renderer.AddActor(self.dynActor)
         self.rButtonMap = {'X': 0, 'Y': 1, 'Z': 2}
+        self.sliceVal = 0
         self.ax = 0
 
         # Make the vtk application interactive as well

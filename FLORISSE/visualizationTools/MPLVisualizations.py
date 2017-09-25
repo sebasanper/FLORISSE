@@ -4,77 +4,37 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # ==============================================================================
-# def visualizeHorizontal - plot the freestream flow field at hub height
-# def visualizeCut - plot the freestream flow field at some x-coordinate
-# def visualizeLidar - plot the output of the Stuttgart lidar model implemented
+# visualizeHorizontal - plot the freestream flow field at hub height
+# visualizeCut - plot the freestream flow field at some x-coordinate
+# visualizeLidar - plot the output of the Stuttgart lidar model implemented
 # ==============================================================================
 
 
-def visualizeHorizontal(xLen, yLen, zLen, Ufield, inputData):
-
-    # plot the freestream flow field at hub height
-    print('Plotting Flow Field Horizontal...\n')
-
-    Uinf = inputData['windSpeed']
-    windDirection = inputData['windDirection']
-    D = inputData['rotorDiameter']
-    yaw = inputData['yawAngles']
-    xTurb = inputData['turbineX']
-    yTurb = inputData['turbineY']
-    zTurb = inputData['turbineZ']
-    turbineLidar = inputData['turbineLidar']
-
-    # number of turbines
-    nTurbs = len(xTurb)
-
-    # rotation angle for the turbines the wind turbines
-    RotAng = -np.radians(windDirection - 270)
+def visualizeHorizontal(flowData, output):
+    # Make some of the used variables less verbose
+    xTurb = output.rotLocX
+    yTurb = output.rotLocY
+    zTurb = output.layout.locZ
+    D = [turb.rotorDiameter for turb in output.layout.turbines]
 
     # plot horizontal flow field
     plt.figure(figsize=(30, 10))
-    plt.contourf(xLen, yLen, Ufield[0, :, :], 50,
-                 cmap='coolwarm', vmin=3.0, vmax=Uinf)
+    plt.contourf(flowData.X[:, :, 0], flowData.Y[:, :, 0], flowData.U[:, :, 0],
+                 50, cmap='coolwarm', vmin=3.0, vmax=output.layout.windSpeed)
     cb = plt.colorbar()
     cb.ax.tick_params(labelsize=15)
 
-    if inputData['Lidar']:
-
-        yLidar = inputData['yLidar']
-        xLidar = inputData['xLidar']
-
-        numLocs = len(np.unique(xLidar))
-        xLocs = np.zeros(numLocs+1)
-        ymin = np.zeros(numLocs+1)
-        ymax = np.zeros(numLocs+1)
-        cols = yLidar.columns
-        ymin[0] = yTurb[turbineLidar]
-        ymax[0] = yTurb[turbineLidar]
-        xLocs[0] = xTurb[turbineLidar]
-        for i in range(1, numLocs+1):
-            xLocs[i] = xTurb[turbineLidar] + np.unique(xLidar)[i-1]
-            ymin[i] = yTurb[turbineLidar] + np.min(yLidar[cols[i-1]])
-            ymax[i] = yTurb[turbineLidar] + np.max(yLidar[cols[i-1]])
-            plt.plot([xLocs[i], xLocs[i]], [ymin[i], ymax[i]], 'k')
-
-        plt.plot(xLocs, ymin, 'k', linewidth=3)
-        plt.plot(xLocs, ymax, 'k', linewidth=3)
-        plt.plot([xTurb[turbineLidar], xTurb[turbineLidar] + 700],
-                 [yTurb[turbineLidar], yTurb[turbineLidar]],
-                 'k--', linewidth=3)
-
-    for idx in range(nTurbs):
-
+    for idx in range(output.layout.nTurbs):
         if zTurb[idx] == zTurb[0]:
-
-            yawR = np.radians(yaw[idx])
+            yawR = np.radians(output.cSet.yawAngles[idx])
 
             # x coordinate
-            xRot1 = xTurb[idx] - (-(D[idx]/2))*np.sin(RotAng+yawR)
-            xRot2 = xTurb[idx] - ((D[idx]/2))*np.sin(RotAng+yawR)
+            xRot1 = xTurb[idx] - (-(D[idx]/2))*np.sin(yawR)
+            xRot2 = xTurb[idx] - ((D[idx]/2))*np.sin(yawR)
 
             # z coordinate
-            yRot1 = yTurb[idx] + (-(D[idx]/2))*np.cos(RotAng+yawR)
-            yRot2 = yTurb[idx] + ((D[idx]/2))*np.cos(RotAng+yawR)
+            yRot1 = yTurb[idx] + (-(D[idx]/2))*np.cos(yawR)
+            yRot2 = yTurb[idx] + ((D[idx]/2))*np.cos(yawR)
 
             plt.plot([xRot1, xRot2], [yRot1, yRot2], 'k', linewidth=3)
 
@@ -85,90 +45,48 @@ def visualizeHorizontal(xLen, yLen, zLen, Ufield, inputData):
     plt.title('Horizontal', fontsize=15)
 
 
-def visualizeCut(xLen, yLen, zLen, Ufield, inputData):
-
-    # plot the freestream flow field at some x-coordinate
-    print('Plotting Flow Field Cut Through Slice at ',
-          inputData['downLocs'], '...\n')
-
-    Uinf = inputData['windSpeed'][0]
-    windDirection = inputData['windDirection'][0]
-    tilt = -1 * inputData['tilt']
-    yaw = inputData['yawAngles']
-    D = inputData['rotorDiameter']
-    HH = inputData['hubHeight']
-
-    xTurb = inputData['turbineX']
-    yTurb = inputData['turbineY']
-    zTurb = inputData['turbineZ']
-
-    # number of turbines
-    nTurbs = len(xTurb)
-
-    # rotation angle for the turbines the wind turbines
-    RotAng = -(windDirection - 270) * np.pi/180
+def visualizeCut(flowData, output, x, turbI):
+    # Make some of the used variables less verbose
+    yTurb = output.rotLocY
+    zTurb = output.layout.locZ
+    D = [turb.rotorDiameter for turb in output.layout.turbines]
 
     # plot horizontal flow field
     plt.figure(figsize=(10, 7))
-    plt.contourf(-yLen, zLen, Ufield[:, :, 0], 50,
-                 cmap='coolwarm', vmin=4.0, vmax=Uinf)
+    plt.contourf(flowData.Y[0, :, :], flowData.Z[0, :, :], flowData.U[0, :, :],
+                 50, cmap='coolwarm', vmin=4.0, vmax=output.layout.windSpeed)
     plt.colorbar()
 
     # plot rotor
-    yCirc = np.linspace(-D[0]/2, D[0]/2, 100)
-    zCirc1 = np.sqrt((D[0]/2)**2 - (yCirc-yTurb[0])**2) + zTurb[0]
-    zCirc2 = -np.sqrt((D[0]/2)**2 - (yCirc-yTurb[0])**2) + zTurb[0]
+    yCirc = np.linspace(-D[turbI]/2, D[turbI]/2, 100)
+    zCirc1 = np.sqrt((D[turbI]/2)**2 - (yCirc-yTurb[turbI])**2) + zTurb[turbI]
+    zCirc2 = -np.sqrt((D[turbI]/2)**2 - (yCirc-yTurb[turbI])**2) + zTurb[turbI]
     plt.plot(yCirc, zCirc1, 'k', linewidth=3)
     plt.plot(yCirc, zCirc2, 'k', linewidth=3)
 
-    # for i in range(len(xLen)):
-    #   for j in range(len(yLen)):
-    #       plt.plot(xLen[i],yLen[j],'k.',linewidth=3)
-
-    # plt.axis('equal')
     plt.xlabel('y(m)', fontsize=15)
     plt.ylabel('z(m)', fontsize=15)
-    strTitle = 'Cut Through Slice at ', inputData['downLocs'][0]/D[0], 'D'
+    strTitle = 'Cut Through Slice at ', x/D[turbI], 'D'
     plt.title(strTitle, fontsize=15)
-    plt.xlim([-2*D[0], 2*D[0]])
-    plt.ylim([0.0, 2*HH[0]])
-    plt.axis('equal')
+
+    plt.xlim([-2*D[turbI], 2*D[turbI]])
+    plt.ylim([0.0, 2*zTurb[turbI]])
+#    print(dir(plt.Axes))
+#    plt.Axes.set_aspect(aspect=1)  # TODO fix aspectratio
 
 
-def visualizeLidar(xTurb, yTurb, X, Y, Z, Ufield, inputData, vlos):
-
-    # plot the output of the Stuttgart lidar model implemented
-    Uinf = inputData['windSpeed']
-
-    # parameters from inputData
-    idxTurb = inputData['turbineLidar']
-    zTurb = inputData['turbineZ'][idxTurb]
-
-    # Lidar parameters
-    xLocs = np.unique(inputData['xLidar']) + xTurb
-    numLocs = len(xLocs)
-
-    # plot Lidar panels
+def visualizeLidar(flowData, output, turbI):
     plt.figure(figsize=(20, 3))
-    cols = inputData['yLidar'].columns
+    for i in range(flowData.X.shape[0]):
+        plt.subplot(1, 5, i+1)
+        strLoc = 'Downwind distance = %02d' % flowData.X[i, 0, 0]
 
-    for kk in range(numLocs):
-        plt.subplot(1, numLocs, kk+1)
-        yPlot = np.unique(inputData['yLidar'][cols[kk]]) + yTurb
-        zPlot = np.unique(inputData['zLidar'][cols[kk]]) + zTurb
-
-        Uplot = np.zeros((len(yPlot), len(zPlot)))
-
-        # find the Ufield points that correspond to yPlot and zPlot
-        for ii in range(len(zPlot)):
-            for jj in range(len(yPlot)):
-                if (X[ii, jj, kk] == xLocs[kk] and
-                        Y[ii, jj, kk] == yPlot[jj] and
-                        Z[ii, jj, kk] == zPlot[ii]):
-                    Uplot[ii, jj] = Ufield[ii, jj, kk]
-
-        plt.contourf(-yPlot, zPlot, Uplot, 50,
-                     cmap='coolwarm', vmin=2.0, vmax=Uinf)
-        plt.xlim([-60 - yTurb, 60 - yTurb])
-        plt.ylim([40, 160])
+        plt.contourf(flowData.Y[i, :, :], flowData.Z[i, :, :], flowData.U[i, :, :],
+                     50, cmap='coolwarm', vmin=2.0, vmax=output.layout.windSpeed)
+        plt.title(strLoc, fontsize=12)
+        plt.xlabel('y (m)', fontsize=12)
+        if i == 0:
+            plt.ylabel('z (m)', fontsize=12)
+        plt.xlim([-100, 100])
+        plt.ylim([30, 150])
         plt.colorbar()

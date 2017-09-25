@@ -1,102 +1,78 @@
 # optimization modules
 
-import numpy as np
-
 from scipy.optimize import minimize
 
-import florisCoreFunctions.main as main
+import florisCoreFunctions.windPlant as windPlant
 
-def optPlant(x,strOpt,inputData):
 
-	nTurbs 	= len(inputData['turbineX'])
-	D 		= inputData['rotorDiameter'][0]
-	Uinf 	= inputData['windSpeed']
-	Ueff 	= main.WakeModel(inputData)
+def optPlant(x, strOpt, model, layout, cSet):
+    if strOpt == 'axial':
+        cSet.bladePitch = x
+    elif strOpt == 'yaw':
+        cSet.yawAngles = x
 
-	if strOpt == 'axial':
-		inputData['bladePitch'] = x
-	elif strOpt == 'yaw':
-		if inputData['WakeModel'] == 2:
-			# due to sign convention
-			inputData['yawAngles'] = x
-		else:
-			inputData['yawAngles'] = x
+    output = windPlant.windPlant(model, layout, cSet, False)
+    return -1*sum(output.power)
 
-	Ueff 		= main.WakeModel(inputData)
-	powerOut 	= utilities.computePower(Ueff,inputData)
 
-	# maximize the power output of the wind farm
-	powerOpt 	= -1*sum(powerOut)
+def axialOpt(model, layout, cSet):
+    x0 = cSet.bladePitch
+    print('================================================================')
+    print('Optimizing axial induction control...')
+    print('Number of parameters to optimize = ', len(x0))
+    print('================================================================\n')
 
-	return powerOpt
+    outputUnOptim = windPlant.windPlant(model, layout, cSet, True)
+    powerOld = sum(outputUnOptim.power)
 
-def axialOpt(inputData):
+    bnds = [turb.betaLims for turb in layout.turbines]
+    resPlant = minimize(optPlant, x0, args=('axial', model, layout, cSet),
+                        method='SLSQP', bounds=bnds, options={'ftol': 0.01, 'eps': 0.5})
 
-	Uinf = inputData['windSpeed']
-	nTurbs = len(inputData['turbineX'])
+    cSet.bladePitch = resPlant.x
+    outputOpt = windPlant.windPlant(model, layout, cSet, True)
 
-	x0 = inputData['bladePitch'] 
+    print('Optimal pitch angles for:')
+    for i in range(layout.nTurbs):
+        print('Turbine ', i, ' pitch angle = ', resPlant.x[i])
 
-	# to do axial induction control, you need pre-generated cp/ct tables based on pitch and wind speed
-	if inputData['TurbineInfo']['PitchCpCt'] == True:
-		fCp,fCt,beta 	= inputData['TurbineInfo']['CpCtPitch']
-	else:
-		print('Cannot perform axial induction control without Cp/Ct tables based on pitch')
-		return inputData['Cp'], inputData['Ct'], inputData['bladePitch']
+    powerGain = 100*(sum(outputOpt.power) - powerOld)/powerOld
+    print('Power gain = ', powerGain, '%\n')
 
-	print('=====================================================================')
-	print('Optimizing axial induction control...')
-	print('Number of parameters to optimize = ', len(x0))
-	print('=====================================================================')
+    return outputOpt
 
-	# put bounds on design variables
-	bnds = []
-	minbeta = np.min(beta)
-	maxbeta = np.max(beta)
-	for i in range(nTurbs):
-		bnds.append((minbeta,maxbeta))
-	
-	resPlant = minimize(optPlant,x0,args=('axial',inputData),method='SLSQP',bounds=bnds,options={'ftol':0.01,'eps':0.5})
 
-	CpOpt = []
-	CtOpt = []
-	bladePitchOpt = resPlant.x
+def yawOpt(model, layout, cSet):
+    x0 = cSet.yawAngles
+    print('================================================================')
+    print('Optimizing wake redirection control...')
+    print('Number of parameters to optimize = ', len(x0))
+    print('================================================================\n')
 
-	for i in range(nTurbs):
-		CpOpt.append(fCp(Uinf,resPlant.x[i]))
-		CtOpt.append(fCt(Uinf,resPlant.x[i]))
+    # put bounds on design variables
+    minYaw = [-25]
+    maxYaw = [25.0]
 
-	return CpOpt,CtOpt,bladePitchOpt
+    bnds = []
+    for i in range(layout.nTurbs):
+        if len(minYaw) > 1:
+            bnds.append((minYaw[i], maxYaw[i]))
+        else:
+            bnds.append((minYaw, maxYaw))
+    outputUnOptim = windPlant.windPlant(model, layout, cSet, True)
+    powerOld = sum(outputUnOptim.power)
 
-def yawOpt(inputData):
+    resPlant = minimize(optPlant, x0, args=('yaw', model, layout, cSet),
+                        method='SLSQP', bounds=bnds, options={'ftol': 0.1, 'eps': 5.0})
 
-	yaw 	= inputData['yawAngles']
-	minYaw 	= [0.0]
-	maxYaw 	= [25.0] 
+    cSet.yawAngles = resPlant.x
+    outputOpt = windPlant.windPlant(model, layout, cSet, True)
 
-	nTurbs 	= len(inputData['turbineX'])
+    print('Optimal yaw angles for:')
+    for i in range(layout.nTurbs):
+        print('Turbine ', i, ' yaw angle = ', resPlant.x[i])
 
-	x0 		= inputData['yawAngles'] 
+    powerGain = 100*(sum(outputOpt.power) - powerOld)/powerOld
+    print('Power gain = ', powerGain, '%\n')
 
-	print('=====================================================================')
-	print('Optimizing wake redirection control...')
-	print('Number of parameters to optimize = ', len(x0))
-	print('=====================================================================')
-
-	# put bounds on design variables
-	bnds = []
-	for i in range(nTurbs):
-		if len(minYaw) > 1:
-			bnds.append((minYaw[i],maxYaw[i]))
-		else:
-			bnds.append((minYaw,maxYaw))
-	
-	resPlant = minimize(optPlant,x0,args=('yaw',inputData),method='SLSQP',bounds=bnds,options={'ftol':0.1,'eps':5.0})
-
-	yawOpt = resPlant.x
-
-	print('Optimal yaw angles for:')
-	for i in range(nTurbs):
-		print('Turbine ', i, ' yaw angle = ', resPlant.x[i])
-
-	return yawOpt
+    return outputOpt

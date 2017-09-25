@@ -13,7 +13,10 @@ class outputClass:
         # Rotated turbines locations
         self.rotLocX = [[] for i in range(nTurbs)]
         self.rotLocY = [[] for i in range(nTurbs)]
-        self.rootPath = os.path.dirname(sys.modules['__main__'].__file__)
+        try:
+            self.prRootPath = os.path.dirname(sys.modules['__main__'].__file__)
+        except:
+            self.prRootPath = False
 
         # individual turbine parameters
         self.Ct = [[] for i in range(nTurbs)]  # Thrust Coefficient
@@ -38,9 +41,10 @@ class fullOutput(outputClass):
         self.cSet = cSet
         self.viewApp = viewer(self)
 
-    def writeToDisk(self, filename):
-        vDataPath = self.rootPath + '/visualizationData/'
-        fullFileName = vDataPath+filename
-        os.rename(self.v.vtiFile, fullFileName+'.vti')
-        self.v.vtiFile = fullFileName+'.vti'
-        pickle.dump(self, open(fullFileName+'.p', "wb" ))
+    def printVelocitiesAndPowers(self):
+        # Velocity and power output
+        print('Effective Velocities and turbine powers')
+        for i in range(self.layout.nTurbs):
+            print('Turbine ', i, ' velocity = ',
+                  self.windSpeed[i], ' power = ', self.power[i])
+        print(sum(self.power), '\n')

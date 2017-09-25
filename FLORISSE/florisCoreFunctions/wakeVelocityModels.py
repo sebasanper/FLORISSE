@@ -1,7 +1,3 @@
-
-
-
-
 # -*- coding: utf-8 -*-
 import numpy as np
 
@@ -16,7 +12,6 @@ class Jensen:
         self.aI = output.aI[turbI]
 
     def V(self, U, x, y, z):
-
         # compute the velocity based on the classic Jensen/Park model,
         # see Jensen 1983
         c = (self.R/(self.ke*(x) + self.R))**2
@@ -24,7 +19,7 @@ class Jensen:
         return v
 
     def B(self, x, y, z):
-        return np.hypot(y, z) < (self.ke*x + self.R)
+        return (np.hypot(y, z) < (self.ke*x + self.R)) & (x > 0)
 
 
 class FLORIS:
@@ -61,7 +56,7 @@ class FLORIS:
         return U*(1-2.*self.aI*c)
 
     def B(self, x, y, z):
-        return np.hypot(y, z) < (self.R + self.ke*self.me[2]*x)
+        return (np.hypot(y, z) < (self.R + self.ke*self.me[2]*x)) & (x > 0)
 
 
 class GAUSS:
@@ -74,10 +69,6 @@ class GAUSS:
         self.kb = model.kb
         self.alpha = model.alpha
         self.beta = model.beta
-        self.ad = model.ad
-        self.bd = model.bd
-        self.aT = model.aT
-        self.bT = model.bT
 
         self.veer = layout.veer
         self.D = layout.turbines[turbI].rotorDiameter
@@ -109,11 +100,10 @@ class GAUSS:
         ky = self.ka*self.TI + self.kb
         kz = self.ka*self.TI + self.kb
 
-        # COMPUTE VELOCITY DEFICIT
+        # Compute the location of the swept plane of the rotor
         xR = y*np.tan(self.yaw*np.pi/180.)
-
         behindSwept = x > xR
-#        if x>xR:
+
         sigma_y_nw = ((((x0-xR)-(x-xR))/(x0-xR))*0.501*self.D *
                       np.sqrt(self.Ct/2.) + ((x-xR)/(x0-xR))*sigma_y0)
         sigma_z_nw = ((((x0-xR)-(x-xR))/(x0-xR))*0.501*self.D *
@@ -121,6 +111,7 @@ class GAUSS:
         sigma_y_fw = ky*(x - x0) + sigma_y0
         sigma_z_fw = kz*(x - x0) + sigma_z0
 
+        # Compute the standard deviation in the near and far wake
         nwMask = x < x0
         sigma_y = sigma_y_nw*nwMask + sigma_y_fw*~nwMask
         sigma_z = sigma_z_nw*nwMask + sigma_z_fw*~nwMask
@@ -133,13 +124,11 @@ class GAUSS:
              (np.cos(self.veer*np.pi/180.)**2)/(2*sigma_z**2))
         totGauss = (np.exp(-(a*(y)**2 - 2*b*(y)*(z) + c*(z)**2)))
 
-        Uwake = (U-(U*(1-np.sqrt(1-((self.Ct*np.cos(self.yaw*np.pi/180.)) /
-                 (8.0*sigma_y*sigma_z/self.D**2)))))*totGauss)
-        Uwake[np.isnan(Uwake)] = 0
-#        else:
-#            Uwake = U
-#        return Uwake
-        
+        # Compute the velocity deficit
+        coreVelDef = (1-((self.Ct*np.cos(self.yaw*np.pi/180.)) /
+                      (8.0*sigma_y*sigma_z/self.D**2)))
+        Uwake = U-(U*(1-np.sqrt(abs(coreVelDef))))*totGauss
+
         return U*~behindSwept + Uwake*behindSwept
 
     def B(self, x, y, z):

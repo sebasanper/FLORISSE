@@ -66,7 +66,6 @@ class porteAgelDeflection:
         self.tilt = cSet.tiltAngles[turbI]
 
     def displ(self, x):
-
         # initial velocity deficits
         uR = (self.Ct*np.cos(self.yaw*np.pi/180.) /
               (2.*(1-np.sqrt(1-(self.Ct*np.cos(self.yaw*np.pi/180.))))))
@@ -78,7 +77,7 @@ class porteAgelDeflection:
 
         # quantity that determines when the far wake starts
         x0 = (self.D*(np.cos(self.yaw*np.pi/180.) *
-                      (1+np.sqrt(1-self.Ct*np.cos(self.yaw*np.pi/180.)))) /
+              (1+np.sqrt(1-self.Ct*np.cos(self.yaw*np.pi/180.)))) /
               (np.sqrt(2)*(4*self.alpha*self.TI +
                            2*self.beta*(1-np.sqrt(1-self.Ct)))))
 

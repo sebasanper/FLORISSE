@@ -48,25 +48,25 @@ def windPlant(model, layout, cSet, *argv):
         # compute the initial added turbulence at the rotor
         upWindTurbines = sortedTurbIds[:sortedTurbIds.index(turbI)]
 
-        TI_added = wPFs.computeAddedTI(np.atleast_3d(UfieldOrig[:, :, turbI]), xTurb, yTurb, zTurb,
-         Utp[:,:,turbI,:], turbI, upWindTurbines, model, layout, output)
+        TI_added = wPFs.computeAddedTI(np.atleast_3d(UfieldOrig[turbI, :, :]), xTurb, yTurb, zTurb,
+         Utp[turbI,:,:,:], turbI, upWindTurbines, model, layout, output)
 
         # add turbulence via sum of squares
-        output.TI[turbI] = np.linalg.norm(TI_added + [layout.turbulenceIntensity])
+        output.TI[turbI] = np.linalg.norm(TI_added + [layout.TI_0])
 
         # Instantiate the wake of this turbine
         output.wakes[turbI] = model.wake(model, layout, cSet, output, turbI)
 
-        # cycle through the grid generated above
-        for xIdx in range(X.shape[2]):
-            yDisp, zDisp = output.wakes[turbI].displ(X[0, 0, xIdx])
-            for yIdx in range(Y.shape[1]):
-                for zIdx in range(Z.shape[0]):
-                    # Update the gridpoint behind the turbine and inside the wake
-                    if (X[zIdx, yIdx, xIdx] >= xTurb[turbI] - D[turbI] and
-                            output.wakes[turbI].B(X[zIdx, yIdx, xIdx]-xTurb[turbI], Y[zIdx, yIdx, xIdx]-yTurb[turbI]-yDisp, Z[zIdx, yIdx, xIdx]-zTurb[turbI]-zDisp)):
-                        Utp[zIdx, yIdx, xIdx, turbI] = output.wakes[turbI].V(UfieldOrig[zIdx, yIdx, xIdx], X[zIdx, yIdx, xIdx]-xTurb[turbI], Y[zIdx, yIdx, xIdx]-yTurb[turbI]-yDisp, Z[zIdx, yIdx, xIdx]-zTurb[turbI]-zDisp)
-
+        # Compute the velocity field according to this wake
+        tol = (np.abs(np.sin(cSet.yawAngles[turbI])) *
+               (layout.turbines[turbI].rotorDiameter)/2)
+        dwDist = X[:, 0, 0]-xTurb[turbI]
+        Yrel = Y - yTurb[turbI]
+        Zrel = Z - zTurb[turbI]
+        Utp[:, :, :, turbI] = computeVelocity(dwDist, Yrel, Zrel, UfieldOrig,
+                                              output.wakes[turbI], tol)
+        
+        # Combine the wake of the turbine with the flowfield so far
         Ufield = model.wakeCombine(UfieldOrig, output.windSpeed[turbI],
                                    Ufield, Utp[:, :, :, turbI])
 
@@ -74,28 +74,31 @@ def windPlant(model, layout, cSet, *argv):
 
 
 def velAtLocations(X, Y, Z, output):
-    xTurb = output.rotLocX
-    yTurb = output.rotLocY
-    zTurb = output.layout.locZ
-    D = [turb.rotorDiameter for turb in output.layout.turbines]
-
     UfieldOrig = wPFs.initializeFlowField(Z, output.layout)
     Ufield = copy.copy(UfieldOrig)
 
     for turbI in range(output.layout.nTurbs):
-        UfieldOrigEmpty = copy.copy(UfieldOrig)
-        # cycle through the grid generated above
-        for xIdx in range(X.shape[2]):
-            if X[0, 0, xIdx] >= xTurb[turbI]- D[turbI]:
-                yDisp, zDisp = output.wakes[turbI].displ(X[0, 0, xIdx])
-                dwDist = X[0, 0, xIdx]-xTurb[turbI]
-                yMat = Y[:, :, xIdx]-yTurb[turbI]-yDisp
-                zMat = Z[:, :, xIdx]-zTurb[turbI]-zDisp
-                wakeMask = output.wakes[turbI].B(dwDist, yMat, zMat)
-                uWake = output.wakes[turbI].V(UfieldOrig[:, :, xIdx], dwDist, yMat, zMat)
-
-                UfieldOrigEmpty[:, :, xIdx] = uWake*wakeMask + UfieldOrigEmpty[:, :, xIdx]*~wakeMask
-
-        Ufield = output.model.wakeCombine(UfieldOrig, output.windSpeed[turbI],
-                                           Ufield, UfieldOrigEmpty)
+        tol = (np.abs(np.sin(output.cSet.yawAngles[turbI])) *
+               (output.layout.turbines[turbI].rotorDiameter)/2)
+        Xrel = X[:, 0, 0]-output.rotLocX[turbI]
+        Yrel = Y - output.rotLocY[turbI]
+        Zrel = Z - output.layout.locZ[turbI]
+        Uturb = computeVelocity(Xrel, Yrel, Zrel, UfieldOrig,
+                                output.wakes[turbI], tol)
+        Ufield = output.model.wakeCombine(
+                UfieldOrig, output.windSpeed[turbI], Ufield, Uturb)
     return Ufield
+
+
+def computeVelocity(dwDist, Y, Z, Uin, wake, tol):
+    U = copy.copy(Uin)
+    # cycle through the grid generated above
+    for xIdx in range(dwDist.shape[0]):
+        if dwDist[xIdx] >= -tol:
+            yDisp, zDisp = wake.displ(dwDist[xIdx])
+            yMat = Y[xIdx, :, :]-yDisp
+            zMat = Z[xIdx, :, :]-zDisp
+            wakeMask = wake.B(dwDist[xIdx], yMat, zMat)
+            uWake = wake.V(Uin[xIdx, :, :], dwDist[xIdx], yMat, zMat)
+            U[xIdx, :, :] = uWake*wakeMask + Uin[xIdx, :, :]*~wakeMask
+    return U

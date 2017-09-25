@@ -20,7 +20,7 @@ class NREL5MWTurbine:
         self.useTSR = useTSR
         self.usePitch = usePitch
         if usePitch:
-            self.Cp, self.Ct = CpCtpitch()
+            self.Cp, self.Ct, self.betaLims = CpCtpitch()
         else:
             self.Cp, self.Ct = CpCtWs()
 
@@ -91,4 +91,4 @@ def CpCtpitch():
     fCp = interp2d(windSpeeds, beta, Cp, kind='cubic')
     fCt = interp2d(windSpeeds, beta, Ct, kind='cubic')
 
-    return fCp, fCt
+    return fCp, fCt, (min(beta), max(beta))
