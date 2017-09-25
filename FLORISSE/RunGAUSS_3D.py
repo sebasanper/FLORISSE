@@ -1,48 +1,58 @@
-import numpy as np
-from pandas import read_csv
 # Importing imp causes Spyder to automatically re-import changed modules
 import imp
 
-import florisCoreFunctions.main as main
-import visualizationTools.MPLVisualizations as MPLVisualizations
-import inputClasses.layout2 as layoutWindFarm
+import florisCoreFunctions.windPlant as windPlant
+from inputClasses.layouts import layout2 as layoutClass
 import inputClasses.controlSettings
 import inputClasses.modelData
 
 
-model = inputClasses.modelData.modelData(2, 2, 1)
-layout = layoutWindFarm.layout(True, False)
-cSet = inputClasses.controlSettings.controlSet(layout)
-# cSet.yawAngles = [0, 0, 0, 0]
+# =============================================================================
+#                      Basic model run for power prediction
+# =============================================================================
 
-output = main.windPlant(model, layout, cSet)
-# initial power output for optimization comparison
+# Select a velocity, deflection and wake combining model
+model = inputClasses.modelData.modelData(2, 1, 2)
+
+# Select a wind farm layout and specify how the turbines in that layout behave
+layout = layoutClass(True, False)
+
+# Generate control settings for the turbines in the layout
+# all turbines set aligned with wind
+cSet = inputClasses.controlSettings.neutral(layout)
+
+# Run the model and get an output object
+output = windPlant.windPlant(model, layout, cSet, True)
+
+# Power output
 for i in range(layout.nTurbs):
     print(output.windSpeed[i])
     print(output.power[i])
+print(sum(output.power))
 
-print(np.sum(output.power))
-#print(output.Cp)
-#print(output.Ct)
+output.viewApp.showView(3)
 
-##%% Second cell
-## =============================================================================================
-##                                      Optimization
-## =============================================================================================
-## NOTE: large-scale optimization techniques have not been enabled in this version, but will be released in future versions
-#optim = dict()
-#
-## optimization options
-#optim['axial_opt'] = False  # True turns on thrust control
-#optim['yaw_opt'] = False    # True turns on wake steering
-#
-## =============================================================================================
-##                                       Visualization
-## =============================================================================================
+#import pickle
+#outputOldOne = pickle.load( open('C:/Users/roald/Dropbox/Afstuderen/'+
+#          'Python/FLORISSE/FLORISSE/visualizationData/simpleRun.p', "rb" ))
+#outputOldOne.v.showView(4)
+
+# =============================================================================================
+#                                       Visualization
+# =============================================================================================
 #vis = dict()
 #D = layout.TurbineInfo['rotorDiameter']
+
+#outputView = viewer(output)
+#outputView.showView(4)
+#file_Name = "testfile"
 #
-## plot cut through slices (parallel with the rotor)
+#pickle.dump( favorite_color, open( "save.p", "wb" ) )
+#favorite_color = pickle.load( open( "save.p", "rb" ) )
+
+#visualizeOutput(output)
+
+# plot cut through slices (parallel with the rotor)
 #vis['cutThrough'] = False
 #vis['cutTurbID'] = 0
 #vis['downLocs'] = [2*D]
@@ -78,8 +88,18 @@ print(np.sum(output.power))
 ##inputData['yPts'] = np.concatenate(inputData['yLidar'].values) + inputData['turbineY'][inputData['turbineLidar']]
 ##inputData['zPts'] = np.concatenate(inputData['zLidar'].values) + inputData['turbineZ'][inputData['turbineLidar']]
 ##inputData['points'] = False    # must set this to true if you want points
+
+## =============================================================================================
+##                                      Optimization
+## =============================================================================================
+## NOTE: large-scale optimization techniques have not been enabled in this version, but will be released in future versions
+#optim = dict()
 #
+## optimization options
+#optim['axial_opt'] = False  # True turns on thrust control
+#optim['yaw_opt'] = False    # True turns on wake steering
 #
+
 ## =============================================================================================
 ##                                      example (basic)
 ## =============================================================================================

@@ -2,126 +2,31 @@
 # -*- coding: utf-8 -*-
 
 import vtk
-from PyQt5.QtWidgets import (QWidget, QSlider, QApplication,
-                             QLabel, QVBoxLayout)
+from PyQt5.QtWidgets import QWidget, QSlider, QLabel, QVBoxLayout
 from PyQt5.QtCore import Qt
 import numpy as np
-import sys
-
-# Create the standard renderer, render window and interactor
-ren = vtk.vtkRenderer()
-renWin = vtk.vtkRenderWindow()
-renWin.AddRenderer(ren)
-iren = vtk.vtkRenderWindowInteractor()
-iren.SetRenderWindow(renWin)
-
-# Create the reader for the data
-reader = vtk.vtkXMLImageDataReader()
-reader.SetFileName('flowData.vti')
-reader.Update()
-flowField = reader.GetOutput()
-scalar_range = flowField.GetScalarRange()
-
-# Create a custom lut. The lut is used both at a mapper and at the scalar_bar
-lut = vtk.vtkLookupTable()
-lut.SetTableRange(scalar_range)
-lut.Build()
-
-# create the scalar_bar
-scalar_bar = vtk.vtkScalarBarActor()
-scalar_bar.SetOrientationToHorizontal()
-scalar_bar.SetLookupTable(lut)
-scalar_bar.SetNumberOfLabels(8)
-scalar_bar.GetLabelTextProperty().SetFontFamilyToCourier()
-scalar_bar.GetLabelTextProperty().SetJustificationToRight()
-scalar_bar.GetLabelTextProperty().SetVerticalJustificationToCentered()
-scalar_bar.GetLabelTextProperty().BoldOff()
-scalar_bar.GetLabelTextProperty().ItalicOff()
-scalar_bar.GetLabelTextProperty().ShadowOff()
-scalar_bar.GetLabelTextProperty().SetColor(0, 0, 0)
 
 
-# Create transfer mapping scalar value to opacity
-opacityTransferFunction = vtk.vtkPiecewiseFunction()
-opacityTransferFunction.AddPoint(0, .1)
-opacityTransferFunction.AddPoint(2.95, .1)
-opacityTransferFunction.AddPoint(3.05, 0)
-opacityTransferFunction.AddPoint(7, 0)
-
-# Create transfer mapping scalar value to color
-colorTransferFunction = vtk.vtkColorTransferFunction()
-for s in np.linspace(scalar_range[0], scalar_range[1], 200):
-    col = [0, 0, 0]
-    lut.GetColor(s, col)
-    colorTransferFunction.AddRGBPoint(s, col[0], col[1], col[2])
-
-# The property describes how the data will look
-volumeProperty = vtk.vtkVolumeProperty()
-volumeProperty.SetColor(colorTransferFunction)
-volumeProperty.SetScalarOpacity(opacityTransferFunction)
-# A color function with lots of colors is a solid replacement for LinearInterp
-# volumeProperty.SetInterpolationTypeToLinear()
-
-# Cast the data to unsigned int
-castFilter = vtk.vtkImageCast()
-castFilter.SetInputConnection(reader.GetOutputPort())
-castFilter.SetOutputScalarTypeToUnsignedShort()
-castFilter.Update()
-
-# The mapper / ray cast function know how to render the data
-volumeMapper = vtk.vtkFixedPointVolumeRayCastMapper()
-volumeMapper.SetInputConnection(castFilter.GetOutputPort())
-
-# The volume holds the mapper and the property and
-# can be used to position/orient the volume
-volume = vtk.vtkVolume()
-volume.SetMapper(volumeMapper)
-volume.SetProperty(volumeProperty)
-
-# Setup camera
-camera = vtk.vtkCamera()
-camera.SetPosition(-800, -400, 300)
-camera.SetFocalPoint(0, 0, 0)
-camera.SetViewUp(0, 0, 1)
-
-# Setup rendering
-renderer = vtk.vtkRenderer()
-renderer.AddVolume(volume)
-renderer.SetBackground(1, 1, 1)
-renderer.SetActiveCamera(camera)
-renderer.ResetCamera()
-
-# Set renderingwindow and render for the first time
-renderWindow = vtk.vtkRenderWindow()
-renderWindow.AddRenderer(renderer)
-renderWindow.Render()
-
-
-def CheckAbort(obj, event):
-    if obj.GetEventPending() != 0:
-        obj.SetAbortRender(1)
-
-renderWindow.AddObserver('AbortCheckEvent', CheckAbort)
-
-
-class slicerInterface(QWidget):
-    def __init__(self):
+class cutoffInterface(QWidget):
+    def __init__(self, fileLoc):
         super().__init__()
+
         self.OpacB = 3
         self.OpacV = .1
 
-        # Start the user interface
+        # Start the VTK viewer and the user interface
+        self.renderWindow, self.oTF, self.scalar_range, self.scalar_bar = instantiateVTKviewer(fileLoc)
         self.initUI()
 
         # Make the vtk application interactive as well
         iren = vtk.vtkRenderWindowInteractor()
         iren.SetInteractorStyle(vtk.vtkInteractorStyleTrackballCamera())
-        iren.SetRenderWindow(renderWindow)
+        iren.SetRenderWindow(self.renderWindow)
 
         # create the scalar_bar_widget
         scalar_bar_widget = vtk.vtkScalarBarWidget()
         scalar_bar_widget.SetInteractor(iren)
-        scalar_bar_widget.SetScalarBarActor(scalar_bar)
+        scalar_bar_widget.SetScalarBarActor(self.scalar_bar)
         scalar_bar_widget.On()
 
         iren.Initialize()
@@ -155,8 +60,8 @@ class slicerInterface(QWidget):
         self.show()
 
     def changeOpacityBoundary(self, value):
-        self.OpacB = (scalar_range[0]
-                      + (scalar_range[1]-scalar_range[0])*value/100)
+        self.OpacB = (self.scalar_range[0] +
+                      (self.scalar_range[1]-self.scalar_range[0])*value/100)
         self.l1.setText('Cutoff value = %.3f m/s' % self.OpacB)
         self.updateLut()
 
@@ -166,18 +71,106 @@ class slicerInterface(QWidget):
         self.updateLut()
 
     def updateLut(self):
-        opacityTransferFunction.RemoveAllPoints()
-        opacityTransferFunction.AddPoint(scalar_range[0], self.OpacV)
-        opacityTransferFunction.AddPoint(self.OpacB-.01, self.OpacV)
-        opacityTransferFunction.AddPoint(self.OpacB+.01, 0)
-        opacityTransferFunction.AddPoint(scalar_range[1], 0)
-        renderWindow.Render()
+        self.oTF.RemoveAllPoints()
+        self.oTF.AddPoint(self.scalar_range[0], self.OpacV)
+        self.oTF.AddPoint(self.OpacB-.01, self.OpacV)
+        self.oTF.AddPoint(self.OpacB+.01, 0)
+        self.oTF.AddPoint(self.scalar_range[1], 0)
+        self.renderWindow.Render()
 
-app = QApplication.instance()
-if app is None:
-    app = QApplication(sys.argv)
-else:
-    print('QApplication instance already exists: %s' % str(app))
 
-ex = slicerInterface()
-sys.exit(app.exec_())
+def instantiateVTKviewer(fileLoc):
+    # Create the standard renderer, render window and interactor
+    ren = vtk.vtkRenderer()
+    renWin = vtk.vtkRenderWindow()
+    renWin.AddRenderer(ren)
+    iren = vtk.vtkRenderWindowInteractor()
+    iren.SetRenderWindow(renWin)
+
+    # Create the reader for the data
+    reader = vtk.vtkXMLImageDataReader()
+    reader.SetFileName(fileLoc)
+    reader.Update()
+    flowField = reader.GetOutput()
+    scalar_range = flowField.GetScalarRange()
+
+    # Create a custom lut, it's used both as a mapper and at the scalar_bar
+    lut = vtk.vtkLookupTable()
+    lut.SetTableRange(scalar_range)
+    lut.Build()
+
+    # create the scalar_bar
+    scalar_bar = vtk.vtkScalarBarActor()
+    scalar_bar.SetOrientationToHorizontal()
+    scalar_bar.SetLookupTable(lut)
+    scalar_bar.SetNumberOfLabels(8)
+    scalar_bar.GetLabelTextProperty().SetFontFamilyToCourier()
+    scalar_bar.GetLabelTextProperty().SetJustificationToRight()
+    scalar_bar.GetLabelTextProperty().SetVerticalJustificationToCentered()
+    scalar_bar.GetLabelTextProperty().BoldOff()
+    scalar_bar.GetLabelTextProperty().ItalicOff()
+    scalar_bar.GetLabelTextProperty().ShadowOff()
+    scalar_bar.GetLabelTextProperty().SetColor(0, 0, 0)
+
+    # Create transfer mapping scalar value to opacity
+    opacityTransferFunction = vtk.vtkPiecewiseFunction()
+    opacityTransferFunction.AddPoint(0, .1)
+    opacityTransferFunction.AddPoint(2.95, .1)
+    opacityTransferFunction.AddPoint(3.05, 0)
+    opacityTransferFunction.AddPoint(7, 0)
+
+    # Create transfer mapping scalar value to color
+    colorTransferFunction = vtk.vtkColorTransferFunction()
+    for s in np.linspace(scalar_range[0], scalar_range[1], 200):
+        col = [0, 0, 0]
+        lut.GetColor(s, col)
+        colorTransferFunction.AddRGBPoint(s, col[0], col[1], col[2])
+
+    # The property describes how the data will look
+    volumeProperty = vtk.vtkVolumeProperty()
+    volumeProperty.SetColor(colorTransferFunction)
+    volumeProperty.SetScalarOpacity(opacityTransferFunction)
+    # A color function with lots of colors replaces LinearInterp for speed
+    # volumeProperty.SetInterpolationTypeToLinear()
+
+    # Cast the data to unsigned int
+    castFilter = vtk.vtkImageCast()
+    castFilter.SetInputConnection(reader.GetOutputPort())
+    castFilter.SetOutputScalarTypeToUnsignedShort()
+    castFilter.Update()
+
+    # The mapper / ray cast function know how to render the data
+    volumeMapper = vtk.vtkFixedPointVolumeRayCastMapper()
+    volumeMapper.SetInputConnection(castFilter.GetOutputPort())
+
+    # The volume holds the mapper and the property and
+    # can be used to position/orient the volume
+    volume = vtk.vtkVolume()
+    volume.SetMapper(volumeMapper)
+    volume.SetProperty(volumeProperty)
+
+    # Setup camera
+    camera = vtk.vtkCamera()
+    camera.SetPosition(-800, -400, 300)
+    camera.SetFocalPoint(0, 0, 0)
+    camera.SetViewUp(0, 0, 1)
+
+    # Setup rendering
+    renderer = vtk.vtkRenderer()
+    renderer.AddVolume(volume)
+    renderer.SetBackground(1, 1, 1)
+    renderer.SetActiveCamera(camera)
+    renderer.ResetCamera()
+
+    # Set renderingwindow and render for the first time
+    renderWindow = vtk.vtkRenderWindow()
+    renderWindow.AddRenderer(renderer)
+    renderWindow.Render()
+    renderWindow.AddObserver('AbortCheckEvent', CheckAbort)
+
+    return renderWindow, opacityTransferFunction, scalar_range, scalar_bar
+
+
+def CheckAbort(obj, event):
+    if obj.GetEventPending() != 0:
+        obj.SetAbortRender(1)

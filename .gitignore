@@ -1,8 +1,8 @@
 # Byte-compiled / optimized / DLL files
 
 # python cache
-/__pycache__
 __pycache__/
+visualizationData/*
 
 *.py[cod]
 *$py.class

@@ -1,27 +1,6 @@
-# ==============================================================================
-# Utilities for wake model
-# ==============================================================================
-
+# -*- coding: utf-8 -*-
 import numpy as np
-import copy
-from scipy.interpolate import griddata
 import scipy.io
-import florisCoreFunctions.wakeModels as wakeModels
-
-# ==================================================================FUNCTIONS============================================================================
-# 1 getWindCoords
-# 2 getPointsVLOS - retrieves the line of sight wind speed (vlos) from a wind field
-# 3 VLOS
-# 4 rotatedCoordinates - rotate the turbines to 270 degrees and evaluate the wake model in this way.  Makes coding the wake models simpler
-# 5 avgVelocity - compute the average velocity across a rotor
-# 6 combineWakes - combine the wakes based linear superposition or sum of squares
-# 7 computeAddedTI - compute the turbulence intensity added to the wake based on turbine operation and ambient turbulence intensity
-# 8 computeOverlap - compute overlap of an upstream turbine wake (based on a specified threshold)
-# 9 computePower - compute the power at each turbine based on the effective velocity determined using the wake model
-# 10 initializeFlowField - initialize the flow field used in the 3D model based on shear using the power log law
-# 11 determineCpCt - interpolation function based on Cp, Ct, and wind speed
-# 12 outputUpts - compute the output velocity at the points specified in inputData
-# ======================================================================================================================================================
 
 
 def getWindCoords(inputData):
@@ -67,6 +46,7 @@ def getWindCoords(inputData):
             z_W[i] = 0.01
 
     return x_W, y_W, z_W
+
 
 def getPointsVLOS(x_W, y_W, z_W, inputData):
 
@@ -120,6 +100,7 @@ def getPointsVLOS(x_W, y_W, z_W, inputData):
     Points_WFy = inputData['turbineY'][inputData['turbineLidar']] - Points_WFy
 
     return Points_WFx, Points_WFy, Points_WFz
+
 
 def VLOS(x_W, y_W, z_W, inputData, Upts):
 
@@ -192,240 +173,7 @@ def VLOS(x_W, y_W, z_W, inputData, Upts):
 
     return v_los
 
-
-def rotatedCoordinates(layout):
-    # this function rotates the coordinates so that the flow direction is now
-    # alligned with the x-axis. This makes computing wakes and wake overlap
-    # much simpler
-    windDirection = layout.windDirection
-    xTurb = layout.turbineX
-    yTurb = layout.turbineY
-    nTurbs = len(xTurb)
-
-    RotAng = np.radians(windDirection)
-    # find the center of the xy-domain, i.e. the mean
-    xCenter = np.mean(xTurb)
-    yCenter = np.mean(yTurb)
-
-#    if inputData['outputFlowField'] or inputData['visualizeHorizontal']:
-#        # initialize output vectors
-#        Xrot = np.zeros(X.shape)
-#        Yrot = np.zeros(Y.shape)
-#
-#        # number of samples in the x and y coordinates
-#        nSamplesX = X.shape[2]
-#        nSamplesY = Y.shape[1]
-#        nSamplesZ = Z.shape[0]
-#
-#        # demean the X and Y grids and the x and y turbine coordinates
-#        # in order to rotate
-#        X = X - xCenter
-#        Y = Y - yCenter
-#
-#        # rotate the grid
-#        for i in range(nSamplesZ):
-#            for j in range(nSamplesY):
-#                for k in range(nSamplesX):
-#                    Xrot[i, j, k] = X[i, j, k]*np.cos(RotAng) - Y[i, j, k]*np.sin(RotAng) 
-#                    Yrot[i, j, k] = X[i, j, k]*np.sin(RotAng) + Y[i, j, k]*np.cos(RotAng)
-
-    xTurb = xTurb - xCenter
-    yTurb = yTurb - yCenter
-    xTurbRot = np.zeros(nTurbs)
-    yTurbRot = np.zeros(nTurbs)
-
-    # rotate the turbine coordinates
-    for i in range(nTurbs):
-        xTurbRot[i] = xTurb[i]*np.cos(RotAng) - yTurb[i]*np.sin(RotAng)
-        yTurbRot[i] = xTurb[i]*np.sin(RotAng) + yTurb[i]*np.cos(RotAng)
-
-    # put the mean back in and return the X, Y domains and the rotated turbine locations
-#    if inputData['outputFlowField'] or inputData['visualizeHorizontal']:
-#        return Xrot+xCenter, Yrot+yCenter, xTurbRot+xCenter, yTurbRot+yCenter
-#    else:
-    return xTurbRot+xCenter, yTurbRot+yCenter
-
-
-def avgVelocity(X, Y, Z, Ufield, xTurb, yTurb, zTurb, D, turbI, model, cSet):
-
-    # this function averages the velocity across the rotor.
-    # The mean wind speed across the rotor is used.
-    tilt = cSet.tiltAngles[turbI]
-    yaw = cSet.yawAngles[turbI]
-    rotorPts = int(np.round(np.sqrt(model.rotorPts)))
-
-    xCenter = xTurb
-    zR = (D/2.)*np.cos(np.radians(tilt))
-    yR = (D/2.)*np.cos(np.radians(yaw))
-#    xR = (D/2.)*np.sin(np.radians(yaw)) + (D/2.)*np.sin(np.radians(tilt))
-    yPts = np.linspace(yTurb-yR, yTurb+yR, rotorPts)
-    zPts = np.linspace(zTurb-zR, zTurb+zR, rotorPts)
-
-    # this function averages the velocity across the whole rotor
-    # number of points in the X and Y domain
-    nSamplesX = X.shape[2]
-    nSamplesY = Y.shape[1]
-    nSamplesZ = Z.shape[0]
-
-    # define the rotor plane along with the points associated with the rotor
-    Xtmp = []
-    Ytmp = []
-    Ztmp = []
-    Utmp = []
-
-    # if X and Y are large, resample the domains to only include points that
-    # we care about. This significantly speeds up the process
-    for i in range(nSamplesZ):
-        for j in range(nSamplesY):
-            for k in range(nSamplesX):
-                if X[i, j, k] >= (xTurb-D/4.) and X[i, j, k] <= (xTurb+D/4.):
-                    dist = np.hypot(Y[i, j, k] - yTurb, Z[i, j, k] - zTurb)
-                    if dist <= (D/2.):
-                        Xtmp.append(X[i, j, k])
-                        Ytmp.append(Y[i, j, k])
-                        Ztmp.append(Z[i, j, k])
-                        Utmp.append(Ufield[i, j, k])
-
-    # interpolate the points to find the average velocity across the rotor
-    if len(Xtmp) == 0 or len(Ytmp) == 0 or len(Ztmp) == 0:
-        print('Too few points for outputFlowField, ' +
-              'please run again with more points')
-
-    utmp = []
-
-    for i in range(rotorPts):
-        for j in range(rotorPts):
-            dist = np.hypot(yPts[i] - yTurb, zPts[j] - zTurb)
-            if dist <= (D/2.):
-                utmp.append(griddata((Xtmp, Ytmp, Ztmp), Utmp,
-                            (xCenter, yPts[i], zPts[j]), method='nearest'))
-
-    if model.avgCube:
-        return np.mean(utmp**3)**(1./3.)
-    else:
-        return np.mean(utmp)
-
-
-def combineWakes(Uinf, Ueff, Ufield, Uwake, model):
-    # this function allows for different wake superpositions
-    # freestream linear superposition
-    if model.combineWakes == 0:
-        vel = Uinf - ((Uinf - Uwake) + (Uinf - Ufield))
-
-    # local velocity linear superposition
-    elif model.combineWakes == 1:
-        vel = Uinf - ((Ueff - Uwake) + (Uinf - Ufield))
-
-    # sum of squares freestream superposition
-    elif model.combineWakes == 2:
-        vel = Uinf - np.sqrt((Uinf - Uwake)**2 + (Uinf - Ufield)**2)
-
-    # sum of squares local velocity superposition
-    elif model.combineWakes == 3:
-        vel = Ueff - np.sqrt((Ueff - Uwake)**2 + (Uinf - Ufield)**2)
-    else:
-        raise NameError('No valid wake combination model was specified')
-
-    return vel
-
-
-def computeAddedTI(UfieldOrig, xTurb, yTurb, zTurb, Utp,
-                   turbI, upwindTurbines, model, layout, output):
-    # this function computes TI contribution from every upwind turbine to the
-    # turbine 'turbI'
-    # upwind turbine contribution is limited to a specified distance upstream
-    # (default = 15*D)
-
-    D = [turb.rotorDiameter for turb in layout.turbines]
-
-    # determine the effective velocity generated by that specific turbine
-    AreaOverlap = np.zeros(layout.nTurbs)
-    TI_calc = np.zeros(layout.nTurbs)
-
-    for turbIdx in upwindTurbines:
-        if (np.hypot(xTurb[turbI]-xTurb[turbIdx], yTurb[turbI]-yTurb[turbIdx])
-            > (model.TIdistance(D[turbIdx]))):
-            continue
-
-        # compute percent overlap
-        Uwake = np.atleast_3d(Utp[:, :, turbIdx])
-        AreaOverlap[turbIdx] = computeOverlap(Uwake, UfieldOrig)
-
-        # Niayifar and Porte-Agel, "A new analytical model for wind farm power
-        # prediction", 2015
-        if (xTurb[turbI]-xTurb[turbIdx]) > 0:
-            TI_calc[turbIdx] = (model.TIa*(output.aI[turbIdx]**model.TIb) *
-                                (layout.turbulenceIntensity**model.TIc) *
-                                (((xTurb[turbI]-xTurb[turbIdx]) /
-                                 D[turbIdx])**(model.TId)))
-        else:
-            TI_calc[turbIdx] = 0.0
-
-    # compute components of TI added
-    TI_added = []
-    for i in upwindTurbines:
-        if AreaOverlap[i]*TI_calc[i] > 0.0:
-            TI_added.append(AreaOverlap[i]*TI_calc[i])
-
-    return TI_added
-
-
-def computeOverlap(Ufield, UfieldOrig):
-
-    # compute wakeOverlap based on the number of points that are not
-    # freestream velocity, i.e. affected by a wake
-    idx = Ufield.shape
-    numPts = idx[0]*idx[1]*idx[2]
-    count = 0.
-    for i in range(idx[0]):
-        for j in range(idx[1]):
-            for k in range(idx[2]):
-                if Ufield[i, j, k] < 0.99*UfieldOrig[i, j, k]:
-                    count = count + 1
-
-    perOverlap = count/numPts
-    return perOverlap
-
-
-def computePower(Ueff, inputData):
-
-    # compute the power at each turbine based on the effective velocity determined using the wake model
-    nTurbs = len(inputData['turbineX'])
-    rho = inputData['airDensity']
-    D = inputData['rotorDiameter']
-    pP = inputData['pP']
-    pT = inputData['pT']
-    gE = inputData['generatorEfficiency']
-    CpCtTable = inputData['TurbineInfo']['CpCtWindSpeed']
-
-    # turbine operation
-    yaw = inputData['yawAngles']
-    tilt = inputData['tilt']
-    Ct = inputData['Ct']
-    Cp = inputData['Cp']
-
-    powerOut = np.zeros(nTurbs)
-    for i in range(nTurbs):
-        A = np.pi*(D[i]/2.)**2
-        Cptmp = Cp[i]*(np.cos(yaw[i]*np.pi/180.)**pP[i])*(np.cos((tilt[i])*np.pi/180.)**pT[i])
-        powerOut[i] = 0.5*rho*A*Cptmp*gE[i]*Ueff[i]**3
-
-    return powerOut
-
-
-def initializeFlowField(X, Y, Z, layout):
-
-    # initialize the flow field used in the 3D model based on shear using the
-    # power log law
-    Ufield = np.zeros(X.shape)
-    for i in range(X.shape[0]):
-        for j in range(X.shape[1]):
-            for k in range(X.shape[2]):
-                Ufield[i, j, k] = layout.windSpeed * (Z[i, j, k] /
-                                    layout.turbineZ[0])**layout.shear
-
-    return Ufield
-
+           
 def outputUpts(inputData, X, Y, Z, Ufield):
 
     # compute the output velocity at the points specified in inputData

@@ -14,7 +14,7 @@ class NREL5MWTurbine:
         self.NumBlades = 3
         self.pP = 1.88
         self.pT = 2.07
-        self.generatorEfficiency = 1.0
+        self.gE = 1.0  # Generator efficiency
         self.eta = 0.768
 
         self.useTSR = useTSR

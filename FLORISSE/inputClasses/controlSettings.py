@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 
-class controlSet:
+class neutral:
     """A control set for the turbines in the windfarm"""
     def __init__(self, layout):
         nTurbs = layout.nTurbs
@@ -13,3 +13,9 @@ class controlSet:
                            for turb in layout.turbines]  # blade pitch [deg]
         self.TSR = [8.0 if turb.useTSR else 0
                     for turb in layout.turbines]  # Tip speed ratio [-]
+
+
+class yawed(neutral):
+    def __init__(self, layout):
+        super().__init__(layout)
+        self.yawAngles[0] = 20
