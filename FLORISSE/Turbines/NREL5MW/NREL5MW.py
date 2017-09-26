@@ -8,7 +8,7 @@ from scipy.interpolate import interp1d, interp2d
 
 class NREL5MWTurbine:
     """A wind turbine definition"""
-    def __init__(self, usePitch, useTSR):
+    def __init__(self, usePitch):
         self.rotorDiameter = 126.0
         self.hubHeight = 90
         self.NumBlades = 3
@@ -17,7 +17,6 @@ class NREL5MWTurbine:
         self.gE = 1.0  # Generator efficiency
         self.eta = 0.768
 
-        self.useTSR = useTSR
         self.usePitch = usePitch
         if usePitch:
             self.Cp, self.Ct, self.betaLims = CpCtpitch()

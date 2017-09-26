@@ -2,7 +2,9 @@
 
 # python cache
 __pycache__/
-visualizationData/*
+
+# VisualizationData
+FLORISSE/visualizationData/*.vti
 
 *.py[cod]
 *$py.class

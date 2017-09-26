@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
-import pickle
 import sys
 import os.path
-
-from visualizationTools.viewer import viewer
 
 
 class outputClass:
@@ -13,10 +10,17 @@ class outputClass:
         # Rotated turbines locations
         self.rotLocX = [[] for i in range(nTurbs)]
         self.rotLocY = [[] for i in range(nTurbs)]
+
+        # Try to extract the project path so flowfield data can be stored
         try:
-            self.prRootPath = os.path.dirname(sys.modules['__main__'].__file__)
+            if hasattr(sys.modules['__main__'], '__file__'):
+                self.prPath = os.path.dirname(sys.modules['__main__'].__file__)
+            else:
+                curPath = sys.modules['outputClasses.outputs'].__file__
+                pathAsList = os.path.dirname(curPath).split(os.sep)[:-1]
+                self.prPath = os.sep.join(pathAsList)
         except:
-            self.prRootPath = False
+            self.prPath = False
 
         # individual turbine parameters
         self.Ct = [[] for i in range(nTurbs)]  # Thrust Coefficient
@@ -39,7 +43,6 @@ class fullOutput(outputClass):
         self.model = model
         self.layout = layout
         self.cSet = cSet
-        self.viewApp = viewer(self)
 
     def printVelocitiesAndPowers(self):
         # Velocity and power output

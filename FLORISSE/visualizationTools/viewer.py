@@ -4,7 +4,7 @@ import sys
 from pandas import read_csv
 
 import florisCoreFunctions.windPlant
-import visualizationTools.MPLVisualizations as MPLViews
+import visualizationTools.MPLbased.MPLVisualizations as MPLViews
 import visualizationTools.VTKbased.cutoffVisualizationTool as cutoffTool
 import visualizationTools.VTKbased.slicerTool as slicerTool
 from visualizationTools.VTKbased.writeVtiFlowfield import vtiFlowfieldWriter
@@ -50,8 +50,8 @@ class viewer:
                     return
                 self.prepared.append(1)  # TODO: unset this at new turbine
             if ((visTool == 3 or visTool == 4) and not
-                    (self.vtiFile and self.output.prRootPath)):
-                self.vtiFile = (self.output.prRootPath +
+                    (self.vtiFile and self.output.prPath)):
+                self.vtiFile = (self.output.prPath +
                                 '/visualizationData/currentFlowData.vti')
                 vFW = vtiFlowfieldWriter(self.vtiFile)
                 vFW.write(self.generateFullFlowfield())
@@ -106,10 +106,11 @@ class viewer:
         #vis['LidarParams'] = 'LiDAR/Liss2Grid7x7widescreen_1d000_0d450_2d800_10000_1d600_NRELGE_Continuous_Parameter_JENExport.mat'
         #vis['LidarTrajectory'] = 'LiDAR/Liss2Grid7x7widescreen_1d000_0d450_2d800_10000_1d600_NRELGE_Continuous_JENExport.mat'
 
-        XList = read_csv(self.output.prRootPath + '/LiDAR/xLoc.csv').values
-        YList = read_csv(self.output.prRootPath + '/LiDAR/yLoc.csv').values
-        ZList = read_csv(self.output.prRootPath + '/LiDAR/zLoc.csv').values
+        XList = read_csv(self.output.prPath + '/LiDAR/xLoc.csv').values
+        YList = read_csv(self.output.prPath + '/LiDAR/yLoc.csv').values
+        ZList = read_csv(self.output.prPath + '/LiDAR/zLoc.csv').values
 
+        # TODO, this does not represent xList yList and zList, fix it
         xLen = self.output.rotLocX[turbI] + np.unique(XList)
         yLen = self.output.rotLocY[turbI] + np.unique(YList)
         zLen = self.output.layout.locZ[turbI] + np.unique(ZList)

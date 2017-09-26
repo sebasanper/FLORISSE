@@ -13,9 +13,9 @@ class nrel5MWlayout:
     TI_0 = 0.1          # turbulence intensity [-] ex: 0.1 is 10%
     shear = 0.12        # shear exponent (0.14 -> neutral)
 
-    def __init__(self, usePitch, useTSR):
+    def __init__(self, usePitch):
         self.nTurbs = len(self.locX)
-        self.turbines = [NREL5MWTurbine(usePitch, useTSR)
+        self.turbines = [NREL5MWTurbine(usePitch)
                          for i in range(self.nTurbs)]
         self.locZ = [turb.hubHeight for turb in self.turbines]
 
@@ -30,8 +30,8 @@ class layout1(nrel5MWlayout):
     windSpeed = 7.0            # wind speed [m/s]
     windDirection = 0.0       # wind direction [deg] (compass degrees)
 
-    def __init__(self, usePitch, useTSR):
-        super().__init__(usePitch, useTSR)
+    def __init__(self, *args):
+        super().__init__(*args)
 
 
 class layout2(nrel5MWlayout):
@@ -44,8 +44,8 @@ class layout2(nrel5MWlayout):
     windSpeed = 7.0            # wind speed [m/s]
     windDirection = 0       # wind direction [deg] (compass degrees)
 
-    def __init__(self, usePitch, useTSR):
-        super().__init__(usePitch, useTSR)
+    def __init__(self, *args):
+        super().__init__(*args)
 
 
 class layout3(nrel5MWlayout):
@@ -58,5 +58,5 @@ class layout3(nrel5MWlayout):
     windSpeed = 7.0            # wind speed [m/s]
     windDirection = 0       # wind direction [deg] (compass degrees)
 
-    def __init__(self, usePitch, useTSR):
-        super().__init__(usePitch, useTSR)
+    def __init__(self, *args):
+        super().__init__(*args)
