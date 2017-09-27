@@ -13,37 +13,17 @@ from scipy.interpolate import griddata
 # 7. computeOverlap - compute overlap of an upstream turbine wake on swept area
 
 
-def rotatedCoordinates(layout):
-    # this function rotates the coordinates so that the flow direction is now
-    # alligned with the x-axis. This makes computing wakes and wake overlap
-    # much simpler
-    windDirection = layout.windDirection
-    xTurb = layout.locX
-    yTurb = layout.locY
-
-    RotAng = np.radians(windDirection)
-
-    xTurbRot = np.zeros(layout.nTurbs)
-    yTurbRot = np.zeros(layout.nTurbs)
-
-    # rotate the turbine coordinates
-    for i in range(layout.nTurbs):
-        xTurbRot[i] = xTurb[i]*np.cos(RotAng) - yTurb[i]*np.sin(RotAng)
-        yTurbRot[i] = xTurb[i]*np.sin(RotAng) + yTurb[i]*np.cos(RotAng)
-
-    # Return the X and Y domains after adding the mean back to the locations
-    return xTurbRot-min(xTurbRot), yTurbRot-min(yTurbRot)
-
-
-def sweptAreaGrid(model, layout, xTurb, yTurb, zTurb):
+def sweptAreaGrid(model, layout):
     D = [turb.rotorDiameter for turb in layout.turbines]
     rotorPts = int(np.round(np.sqrt(model.rotorPts)))
 
-    X = np.zeros([len(xTurb), rotorPts, rotorPts])
+    X = np.zeros([len(layout.xLocRot), rotorPts, rotorPts])
     Y = np.zeros(X.shape)
     Z = np.zeros(X.shape)
 
-    Xt = xTurb
+    Xt = layout.xLocRot
+    yTurb = layout.yLocRot
+    zTurb = layout.zLoc
     for i in range(len(Xt)):
         Yt = np.linspace(yTurb[i]-(D[i]/2), yTurb[i]+(D[i]/2), rotorPts)
         Zt = np.linspace(zTurb[i]-(D[i]/2), zTurb[i]+(D[i]/2), rotorPts)
@@ -59,7 +39,7 @@ def sweptAreaGrid(model, layout, xTurb, yTurb, zTurb):
 def initializeFlowField(Z, layout):
     # initialize the flow field used in the 3D model based on shear using the
     # power log law
-    Ufield = (layout.windSpeed * (Z/np.mean(layout.locZ))**layout.shear)
+    Ufield = (layout.windSpeed * (Z/np.mean(layout.zLoc))**layout.shear)
 
     return Ufield
 

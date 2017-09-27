@@ -12,9 +12,9 @@ import matplotlib.pyplot as plt
 
 def visualizeHorizontal(flowData, output):
     # Make some of the used variables less verbose
-    xTurb = output.rotLocX
-    yTurb = output.rotLocY
-    zTurb = output.layout.locZ
+    xTurb = output.layout.xLocRot
+    yTurb = output.layout.yLocRot
+    zTurb = output.layout.zLoc
     D = [turb.rotorDiameter for turb in output.layout.turbines]
 
     # plot horizontal flow field
@@ -47,8 +47,8 @@ def visualizeHorizontal(flowData, output):
 
 def visualizeCut(flowData, output, x, turbI):
     # Make some of the used variables less verbose
-    yTurb = output.rotLocY
-    zTurb = output.layout.locZ
+    yTurb = output.layout.yLocRot
+    zTurb = output.layout.zLoc
     D = [turb.rotorDiameter for turb in output.layout.turbines]
 
     # plot horizontal flow field

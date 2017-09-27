@@ -7,9 +7,6 @@ class outputClass:
     """A simple example class"""
     def __init__(self, model, layout, cSet):
         nTurbs = layout.nTurbs
-        # Rotated turbines locations
-        self.rotLocX = [[] for i in range(nTurbs)]
-        self.rotLocY = [[] for i in range(nTurbs)]
 
         # Try to extract the project path so flowfield data can be stored
         try:

@@ -17,25 +17,28 @@ from visualizationTools.viewer import viewer
 model = inputClasses.modelData.modelData(2, 1, 2)
 
 # Select a wind farm layout and specify how the turbine control mode
-layout = layouts.layout2(True)
+layout = layouts.layout3(True)
 
 # Generate control settings for the turbines in the layout
 # all turbines set aligned with wind
 cSet = inputClasses.controlSettings.neutral(layout)
+cSet.yawAngles = [-30, 10, -10, -30, -20, -15, 0, 10, 0]
+#cSet.tiltAngles = [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 # Run the model and get an output object
 outputNeutral = windPlant.windPlant(model, layout, cSet, True)
 outputNeutral.printVelocitiesAndPowers()
 
 viewApp = viewer(outputNeutral)
-viewApp.showView(0)
+#viewApp.showView(0)
 
 # NOTE: large-scale optimization techniques have not been enabled in this
 # version, but will be released in future versions
 #outputOptim = optimizers.axialOpt(model, layout, copy.copy(cSet))
 #outputOptim.printVelocitiesAndPowers()
-#outputOptim.viewApp.showView(0)
 #
 #outputOptim = optimizers.yawOpt(model, layout, copy.copy(cSet))
 #outputOptim.printVelocitiesAndPowers()
-#outputOptim.viewApp.showView(0)
+#
+#viewAppYawOpt = viewer(outputOptim)
+#viewAppYawOpt.showView(0)

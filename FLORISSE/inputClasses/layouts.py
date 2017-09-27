@@ -1,5 +1,5 @@
-#!/usr/bin/python3
 # -*- coding: utf-8 -*-
+import numpy as np
 
 from Turbines.NREL5MW.NREL5MW import NREL5MWTurbine
 
@@ -14,49 +14,73 @@ class nrel5MWlayout:
     shear = 0.12        # shear exponent (0.14 -> neutral)
 
     def __init__(self, usePitch):
-        self.nTurbs = len(self.locX)
+        self.nTurbs = len(self.xLoc)
         self.turbines = [NREL5MWTurbine(usePitch)
                          for i in range(self.nTurbs)]
-        self.locZ = [turb.hubHeight for turb in self.turbines]
+        self.zLoc = [turb.hubHeight for turb in self.turbines]
+
+    @property
+    def windDirection(self):
+        return self.windDir
+
+    # Rotating the wind should change the rotated locations of the turbines.
+    @windDirection.setter
+    def windDirection(self, windDirection):
+        self.windDir = windDirection
+        self.rotateCoordinates()
+
+    def rotateCoordinates(self):
+        # this function rotates the coordinates so that the flow direction is
+        # now alligned with the x-axis. This makes computing wakes and wake
+        # overlap much simpler
+        rotMatrix = self.rotationMatrixCW(np.radians(self.windDirection))
+
+        coordsRot = np.dot(np.array([self.xLoc, self.yLoc]).T, rotMatrix)
+
+        # Make the turbine locations start at 0,0. Save the X and Y domains
+        self.xLocRot = tuple(coordsRot[:, 0].T - min(coordsRot[:, 0]))
+        self.yLocRot = tuple(coordsRot[:, 1].T - min(coordsRot[:, 1]))
+
+    # Define a clockwise rotation matrix
+    def rotationMatrixCW(self, theta):
+        return np.array([[np.cos(theta), np.sin(theta)],
+                        [-np.sin(theta),  np.cos(theta)]])
 
 
 class layout1(nrel5MWlayout):
     """A windfarm layout with one NREL5MW turbine"""
     # set turbine locations - example a single turbine
-    locX = [0.0]
-    locY = [0.0]
-
-    # Atmospheric Conditions
-    windSpeed = 7.0            # wind speed [m/s]
-    windDirection = 0.0       # wind direction [deg] (compass degrees)
+    xLoc = [0.0]
+    yLoc = [0.0]
 
     def __init__(self, *args):
         super().__init__(*args)
+        # Atmospheric Conditions
+        self.windSpeed = 7.0            # wind speed [m/s]
+        self.windDirection = 0.0       # wind direction [deg] (compass degrees)
 
 
 class layout2(nrel5MWlayout):
     """A windfarm layout with 4 NREL5MW turbines"""
     # set turbine locations - example 2x2 wind farm
-    locX = [0, 800, 0, 800]
-    locY = [0, 0, 600, 600]
-
-    # Atmospheric Conditions
-    windSpeed = 7.0            # wind speed [m/s]
-    windDirection = 0       # wind direction [deg] (compass degrees)
+    xLoc = [0, 800, 0, 800]
+    yLoc = [0, 0, 600, 600]
 
     def __init__(self, *args):
         super().__init__(*args)
+        # Atmospheric Conditions
+        self.windSpeed = 7.0       # wind speed [m/s]
+        self.windDirection = 0.0  # wind direction [deg] (compass degrees)
 
 
 class layout3(nrel5MWlayout):
     """A windfarm layout with 4 NREL5MW turbines"""
     # set turbine locations - example 2x2 wind farm
-    locX = [0, 500, 1000, 0, 500, 1000, 0, 500, 1000]
-    locY = [0, 0, 0, 500, 500, 500, 1000, 1000, 1000]
-
-    # Atmospheric Conditions
-    windSpeed = 7.0            # wind speed [m/s]
-    windDirection = 0       # wind direction [deg] (compass degrees)
+    xLoc = [300, 300, 300, 1000, 1000, 1000, 1600, 1600, 1600]
+    yLoc = [100, 300, 500, 100, 300, 500, 100, 300, 500]
 
     def __init__(self, *args):
         super().__init__(*args)
+        # Atmospheric Conditions
+        self.windSpeed = 7.0       # wind speed [m/s]
+        self.windDirection = -20.0  # wind direction [deg] (compass degrees)

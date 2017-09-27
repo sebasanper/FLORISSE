@@ -15,15 +15,14 @@ def windPlant(model, layout, cSet, *argv):
         output = outputClasses.outputs.powerOutput(model, layout, cSet)
 
     # Rotate the frame of reference such that the wind is alligned with x-axis
-    xTurb, yTurb = wPFs.rotatedCoordinates(layout)
-    output.rotLocX = xTurb
-    output.rotLocY = yTurb
+    xTurb = layout.xLocRot
+    yTurb = layout.yLocRot
 
-    zTurb = np.array(layout.locZ)
+    zTurb = np.array(layout.zLoc)
     D = [turb.rotorDiameter for turb in layout.turbines]
 
     # Generate grid points at the swept area of every turbine
-    X, Y, Z = wPFs.sweptAreaGrid(model, layout, xTurb, yTurb, zTurb)
+    X, Y, Z = wPFs.sweptAreaGrid(model, layout)
 
     # Save the flowfield prediction of every turbine in Utp, the weird notation
     # is a trick for tuple concatenation
@@ -80,9 +79,9 @@ def velAtLocations(X, Y, Z, output):
     for turbI in range(output.layout.nTurbs):
         tol = (np.abs(np.sin(output.cSet.yawAngles[turbI])) *
                (output.layout.turbines[turbI].rotorDiameter)/2)
-        Xrel = X[:, 0, 0]-output.rotLocX[turbI]
-        Yrel = Y - output.rotLocY[turbI]
-        Zrel = Z - output.layout.locZ[turbI]
+        Xrel = X[:, 0, 0]-output.layout.xLocRot[turbI]
+        Yrel = Y - output.layout.yLocRot[turbI]
+        Zrel = Z - output.layout.zLoc[turbI]
         Uturb = computeVelocity(Xrel, Yrel, Zrel, UfieldOrig,
                                 output.wakes[turbI], tol)
         Ufield = output.model.wakeCombine(

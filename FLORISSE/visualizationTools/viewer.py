@@ -77,26 +77,26 @@ class viewer:
             raise NameError('No valid view option specified')
 
     def generateFullFlowfield(self):
-        xLen = np.linspace(-250, max(self.output.rotLocX) + 1000, 200)
-        yLen = np.linspace(-250, max(self.output.rotLocY) + 250, 200)
-        zLen = np.linspace(0, 2*max(self.output.layout.locZ), 50)
+        xLen = np.linspace(-250, max(self.output.layout.xLocRot) + 1000, 200)
+        yLen = np.linspace(-250, max(self.output.layout.yLocRot) + 250, 200)
+        zLen = np.linspace(0, 2*max(self.output.layout.zLoc), 50)
         X, Y, Z = np.meshgrid(xLen, yLen, zLen, indexing='ij')
         U = florisCoreFunctions.windPlant.velAtLocations(X, Y, Z, self.output)
         return flowData(X, Y, Z, U)
 
     def generateHubFlowfield(self):
         D0 = self.output.layout.turbines[0].rotorDiameter
-        xLen = np.linspace(-2*D0, max(self.output.rotLocX) + 15*D0, 200)
-        yLen = np.linspace(-2*D0, max(self.output.rotLocY) + 2*D0, 200)
-        zLen = self.output.layout.locZ[0]
+        xLen = np.linspace(-2*D0, max(self.output.layout.xLocRot) + 15*D0, 200)
+        yLen = np.linspace(-2*D0, max(self.output.layout.yLocRot) + 2*D0, 200)
+        zLen = self.output.layout.zLoc[0]
         X, Y, Z = np.meshgrid(xLen, yLen, zLen, indexing='ij')
         U = florisCoreFunctions.windPlant.velAtLocations(X, Y, Z, self.output)
         return flowData(X, Y, Z, U)
 
     def generateSliceFlowfield(self, x, turbI):
-        xLen = self.output.rotLocX[turbI] + x
-        yLen = np.linspace(-250, max(self.output.rotLocY) + 250, 200)
-        zLen = np.linspace(0, 2*max(self.output.layout.locZ), 50)
+        xLen = self.output.layout.xLocRot[turbI] + x
+        yLen = np.linspace(-250, max(self.output.layout.yLocRot) + 250, 200)
+        zLen = np.linspace(0, 2*max(self.output.layout.zLoc), 50)
         X, Y, Z = np.meshgrid(xLen, yLen, zLen, indexing='ij')
         U = florisCoreFunctions.windPlant.velAtLocations(X, Y, Z, self.output)
         return flowData(X, Y, Z, U)
@@ -111,9 +111,9 @@ class viewer:
         ZList = read_csv(self.output.prPath + '/LiDAR/zLoc.csv').values
 
         # TODO, this does not represent xList yList and zList, fix it
-        xLen = self.output.rotLocX[turbI] + np.unique(XList)
-        yLen = self.output.rotLocY[turbI] + np.unique(YList)
-        zLen = self.output.layout.locZ[turbI] + np.unique(ZList)
+        xLen = self.output.layout.xLocRot[turbI] + np.unique(XList)
+        yLen = self.output.layout.yLocRot[turbI] + np.unique(YList)
+        zLen = self.output.layout.zLoc[turbI] + np.unique(ZList)
         X, Y, Z = np.meshgrid(xLen, yLen, zLen, indexing='ij')
         U = florisCoreFunctions.windPlant.velAtLocations(X, Y, Z, self.output)
         return flowData(X, Y, Z, U)
