@@ -30,15 +30,15 @@ outputNeutral = windPlant.windPlant(model, layout, cSet, True)
 outputNeutral.printVelocitiesAndPowers()
 
 viewApp = viewer(outputNeutral)
-viewApp.showView(3)
+#viewApp.showView(3)
 
 # NOTE: large-scale optimization techniques have not been enabled in this
 # version, but will be released in future versions
-#outputOptim = optimizers.axialOpt(model, layout, copy.copy(cSet))
-#outputOptim.printVelocitiesAndPowers()
-#
-#outputOptim = optimizers.yawOpt(model, layout, copy.copy(cSet))
-#outputOptim.printVelocitiesAndPowers()
+outputOptim = optimizers.axialOpt(model, layout, copy.copy(cSet))
+outputOptim.printVelocitiesAndPowers()
+
+outputOptim = optimizers.yawOpt(model, layout, copy.copy(cSet))
+outputOptim.printVelocitiesAndPowers()
 #
 #viewAppYawOpt = viewer(outputOptim)
 #viewAppYawOpt.showView(0)

@@ -11,10 +11,10 @@ class Neutral:
         # change is well. This is accomplished by making a simple object called
         # angleList. It behaves similar as a list but calls computeAlphas
         # every time an element in the list is changed
-        self._yawAngles = angleList([0 for i in range(self.nTurbs)],
-                                    self.computeAlphas)  # Yaw angle [deg]
-        self._tiltAngles = angleList([0 for i in range(self.nTurbs)],
-                                     self.computeAlphas)  # Tilt angle [deg]
+        self._yawAngles = callbackList([0 for i in range(self.nTurbs)],
+                                       self.computeAlphas)  # Yaw angle [deg]
+        self._tiltAngles = callbackList([0 for i in range(self.nTurbs)],
+                                        self.computeAlphas)  # Tilt angle [deg]
         self._alphas = [0 for i in range(self.nTurbs)]  # turbine angle [rad]
 
         self.wakeDir = [np.array([0, 0, 0]) for i in range(self.nTurbs)]
@@ -31,7 +31,7 @@ class Neutral:
     @yawAngles.setter
     def yawAngles(self, value):
         if len(value) == self.nTurbs:
-            self._yawAngles = angleList(value, self.computeAlphas)
+            self._yawAngles = callbackList(value, self.computeAlphas)
             self.computeAlphas()
         else:
             raise Exception('length of yawAngles should be %d' % self.nTurbs)
@@ -43,7 +43,7 @@ class Neutral:
     @tiltAngles.setter
     def tiltAngles(self, value):
         if len(value) == self.nTurbs:
-            self._tiltAngles = angleList(value, self.computeAlphas)
+            self._tiltAngles = callbackList(value, self.computeAlphas)
             self.computeAlphas()
         else:
             raise Exception('length of yawAngles should be %d' % self.nTurbs)
@@ -84,7 +84,7 @@ class Yawed(Neutral):
         self.yawAngles[0] = 20
 
 
-class angleList:
+class callbackList:
     """A list like object that calls the supplied callback function on every
     element that is set"""
     def __init__(self, angles, callback):
@@ -106,3 +106,6 @@ class angleList:
     def __setitem__(self, idx, value):
         self._x[idx] = value
         self.callback()
+
+    def __len__(self):
+        return len(self._x)
