@@ -7,7 +7,6 @@ from Turbines.NREL5MW.NREL5MW import NREL5MWTurbine
 
 
 class TestNREL5MWProperties(unittest.TestCase):
-
     """Tests for `FLORISSE\florisCoreFunctions\windPlant.py`."""
     def test_Attributes_of_NREL5MW_with_Pitch(self):
         # Select wind farm layout and specify controlset

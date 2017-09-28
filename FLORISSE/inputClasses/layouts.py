@@ -4,7 +4,7 @@ import numpy as np
 from Turbines.NREL5MW.NREL5MW import NREL5MWTurbine
 
 
-class nrel5MWlayout:
+class Nrel5MWLayout:
     """A base layout NREL5MW turbine that will set all turbines to NREL5MW
     when locations are specified. Also sets generic atmospheric conditions"""
     # Atmospheric Conditions
@@ -35,19 +35,19 @@ class nrel5MWlayout:
         # overlap much simpler
         rotMatrix = self.rotationMatrixCW(np.radians(self.windDirection))
 
-        coordsRot = np.dot(np.array([self.xLoc, self.yLoc]).T, rotMatrix)
+        coordsRot = np.dot(rotMatrix, np.array([self.xLoc, self.yLoc]))
 
         # Make the turbine locations start at 0,0. Save the X and Y domains
-        self.xLocRot = tuple(coordsRot[:, 0].T - min(coordsRot[:, 0]))
-        self.yLocRot = tuple(coordsRot[:, 1].T - min(coordsRot[:, 1]))
+        self.xLocRot = tuple(coordsRot[0, :] - min(coordsRot[0, :]))
+        self.yLocRot = tuple(coordsRot[1, :] - min(coordsRot[1, :]))
 
     # Define a clockwise rotation matrix
     def rotationMatrixCW(self, theta):
-        return np.array([[np.cos(theta), np.sin(theta)],
-                        [-np.sin(theta),  np.cos(theta)]])
+        return np.array([[np.cos(theta), -np.sin(theta)],
+                        [np.sin(theta),  np.cos(theta)]])
 
 
-class layout1(nrel5MWlayout):
+class Layout1(Nrel5MWLayout):
     """A windfarm layout with one NREL5MW turbine"""
     # set turbine locations - example a single turbine
     xLoc = [0.0]
@@ -60,7 +60,7 @@ class layout1(nrel5MWlayout):
         self.windDirection = 0.0       # wind direction [deg] (compass degrees)
 
 
-class layout2(nrel5MWlayout):
+class Layout2(Nrel5MWLayout):
     """A windfarm layout with 4 NREL5MW turbines"""
     # set turbine locations - example 2x2 wind farm
     xLoc = [0, 800, 0, 800]
@@ -73,7 +73,7 @@ class layout2(nrel5MWlayout):
         self.windDirection = 0.0  # wind direction [deg] (compass degrees)
 
 
-class layout3(nrel5MWlayout):
+class Layout3(Nrel5MWLayout):
     """A windfarm layout with 4 NREL5MW turbines"""
     # set turbine locations - example 2x2 wind farm
     xLoc = [300, 300, 300, 1000, 1000, 1000, 1600, 1600, 1600]

@@ -47,14 +47,14 @@ class modelData:
         elif velocityModel == 2:
             self.velClass = wVMs.GAUSS
         else:
-            raise NameError('No valid wake velocity model was specified')
+            raise Exception('No valid wake velocity model was specified')
 
         if deflectionModel == 0:
             self.deflClass = wDMs.jimenezDeflection
         elif deflectionModel == 1:
             self.deflClass = wDMs.porteAgelDeflection
         else:
-            raise NameError('No valid wake deflection model was specified')
+            raise Exception('No valid wake deflection model was specified')
 
         if combineWakes == 0:
             self.wakeCombine = wCMs.FLS  # freestream linear
@@ -65,7 +65,7 @@ class modelData:
         elif combineWakes == 3:
             self.wakeCombine = wCMs.SOSLVS  # sum of squares local velocity
         else:
-            raise NameError('No valid wake combination model was specified')
+            raise Exception('No valid wake combination model was specified')
 
     # threshold distance of turbines to include in "added turbulence"
     def TIdistance(self, D):

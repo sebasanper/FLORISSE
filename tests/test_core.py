@@ -18,8 +18,8 @@ class TestFlorisCoreWithGaussian(unittest.TestCase):
     """Tests for `FLORISSE\florisCoreFunctions\windPlant.py`."""
     def test_power_of_single_turbine_layout_with_NREL5MW_Pitch(self):
         # Select wind farm layout and specify controlset
-        layout = layouts.layout1(True)
-        cSet = inputClasses.controlSettings.neutral(layout)
+        layout = layouts.Layout1(True)
+        cSet = inputClasses.controlSettings.Neutral(layout)
 
         # Run the model and get an output object
         outputNeutral = windPlant.windPlant(self.model, layout, cSet, False)
@@ -29,8 +29,8 @@ class TestFlorisCoreWithGaussian(unittest.TestCase):
 
     def test_power_of_2_by_2_layout_with_NREL5MW_Pitch(self):
         # Select wind farm layout and specify controlset
-        layout = layouts.layout2(True)
-        cSet = inputClasses.controlSettings.neutral(layout)
+        layout = layouts.Layout2(True)
+        cSet = inputClasses.controlSettings.Neutral(layout)
 
         # In case of model changes, create new data with
         # powerDataWindRose2by2[deg] = sum(outputData['powerOut'])
@@ -45,4 +45,4 @@ class TestFlorisCoreWithGaussian(unittest.TestCase):
             self.assertAlmostEqual(sum(outputNeutral.power)[0], value, 8)
 
 if __name__ == '__main__':
-    unittest.main() 
+    unittest.main()

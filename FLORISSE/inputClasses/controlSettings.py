@@ -3,23 +3,24 @@ import numpy as np
 
 
 # Define a base control set with all the angles set to zero and bladepitch=1.9
-class neutral:
+class Neutral:
     """A control set for the turbines in the windfarm layout"""
     def __init__(self, layout):
         self.nTurbs = layout.nTurbs
-        zeroList = [0 for i in range(self.nTurbs)]
         # If an element in yaw or tilt is changed the other attributes need to
         # change is well. This is accomplished by making a simple object called
         # angleList. It behaves similar as a list but calls computeAlphas
         # every time an element in the list is changed
-        self._yawAngles = angleList(zeroList, self.computeAlphas)  # [deg]
-        self._tiltAngles = angleList(zeroList, self.computeAlphas)  # [deg]
-        self._alphas = zeroList  # [rad]
+        self._yawAngles = angleList([0 for i in range(self.nTurbs)],
+                                    self.computeAlphas)  # Yaw angle [deg]
+        self._tiltAngles = angleList([0 for i in range(self.nTurbs)],
+                                     self.computeAlphas)  # Tilt angle [deg]
+        self._alphas = [0 for i in range(self.nTurbs)]  # turbine angle [rad]
 
         self.wakeDir = [np.array([0, 0, 0]) for i in range(self.nTurbs)]
         self.Cvec = [np.array([[0, 0], [0, 0]]) for i in range(self.nTurbs)]
         self.bladePitch = [1.9 if turb.usePitch else 0
-                           for turb in layout.turbines]  # [deg]
+                           for turb in layout.turbines]  # blade pitch [deg]
 
     # If either yawAngles or tiltAngles is replaced in its entirety the set
     # command is intercepted to rebind self.computeAlphas.
@@ -29,8 +30,11 @@ class neutral:
 
     @yawAngles.setter
     def yawAngles(self, value):
-        self._yawAngles = angleList(value, self.computeAlphas)
-        self.computeAlphas()
+        if len(value) == self.nTurbs:
+            self._yawAngles = angleList(value, self.computeAlphas)
+            self.computeAlphas()
+        else:
+            raise Exception('length of yawAngles should be %d' % self.nTurbs)
 
     @property
     def tiltAngles(self):
@@ -38,15 +42,17 @@ class neutral:
 
     @tiltAngles.setter
     def tiltAngles(self, value):
-        self._tiltAngles = angleList(value, self.computeAlphas)
-        self.computeAlphas()
+        if len(value) == self.nTurbs:
+            self._tiltAngles = angleList(value, self.computeAlphas)
+            self.computeAlphas()
+        else:
+            raise Exception('length of yawAngles should be %d' % self.nTurbs)
 
     @property
-    def alpha(self):
+    def alphas(self):
         return self._alphas
 
     def computeAlphas(self):
-        print('tumtumtum')
         windDir = np.array([-1, 0, 0])
         for i in range(self.nTurbs):
             R = np.dot(self.rotMatrixZ(np.radians(self._yawAngles[i])),
@@ -72,7 +78,7 @@ class neutral:
                         [-np.sin(tau), 0, np.cos(tau)]])
 
 
-class yawed(neutral):
+class Yawed(Neutral):
     def __init__(self, layout):
         super().__init__(layout)
         self.yawAngles[0] = 20

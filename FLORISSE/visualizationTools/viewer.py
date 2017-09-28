@@ -74,7 +74,7 @@ class viewer:
             else:
                 cutoffTool.cutoffInterface(self.vtiFile)
         else:
-            raise NameError('No valid view option specified')
+            raise Exception('No valid view option specified')
 
     def generateFullFlowfield(self):
         xLen = np.linspace(-250, max(self.output.layout.xLocRot) + 1000, 200)
