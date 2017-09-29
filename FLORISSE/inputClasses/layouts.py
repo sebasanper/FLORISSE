@@ -21,12 +21,12 @@ class Nrel5MWLayout:
 
     @property
     def windDirection(self):
-        return self.windDir
+        return self._windDirection
 
     # Rotating the wind should change the rotated locations of the turbines.
     @windDirection.setter
     def windDirection(self, windDirection):
-        self.windDir = windDirection
+        self._windDirection = windDirection
         self.rotateCoordinates()
 
     def rotateCoordinates(self):

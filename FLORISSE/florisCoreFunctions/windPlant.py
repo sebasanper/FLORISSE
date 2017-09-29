@@ -10,7 +10,9 @@ def windPlant(model, layout, cSet, *argv):
     # Create an output object based on the layout. This will hold the results
     # of the FLORIS run and the settings used to run it
     if argv[0]:
-        output = outputClasses.outputs.fullOutput(model, layout, cSet)
+         # fullOutput saves the model layout and controlset as attributes
+        output = outputClasses.outputs.fullOutput(
+                  copy.copy(model), copy.copy(layout), copy.copy(cSet))
     else:
         output = outputClasses.outputs.powerOutput(model, layout, cSet)
 
@@ -64,7 +66,7 @@ def windPlant(model, layout, cSet, *argv):
         Zrel = Z - zTurb[turbI]
         Utp[:, :, :, turbI] = computeVelocity(dwDist, Yrel, Zrel, UfieldOrig,
                                               output.wakes[turbI], tol)
-        
+
         # Combine the wake of the turbine with the flowfield so far
         Ufield = model.wakeCombine(UfieldOrig, output.windSpeed[turbI],
                                    Ufield, Utp[:, :, :, turbI])

@@ -15,7 +15,7 @@ class modelData:
     ad = -4.5              # lateral wake displacement bias parameter (a + bx)
     bd = -0.01             # lateral wake displacement bias parameter (a + bx)
     aT = 0.0               # vertical wake displacement bias parameter (a + bx)
-    bT = 0.0               # vertical wake displacement bias parameter
+    bT = 0.0               # vertical wake displacement bias parameter (a + bx)
     me = [-0.5, 0.3, 1.0]  # expansion of each region of the wake
     MU = [0.5, 1., 5.5]    # determine velocity of each region in the wake
     aU = 12.0              # wake velocity parameter (a + b*yaw)
@@ -53,6 +53,10 @@ class modelData:
             self.deflClass = wDMs.jimenezDeflection
         elif deflectionModel == 1:
             self.deflClass = wDMs.porteAgelDeflection
+        elif deflectionModel == 2:
+            self.deflClass = wDMs.jimenezDeflectionThrustAngle
+        elif deflectionModel == 3:
+            self.deflClass = wDMs.porteAgelDeflectionThrustAngle
         else:
             raise Exception('No valid wake deflection model was specified')
 

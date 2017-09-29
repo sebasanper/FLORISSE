@@ -11,14 +11,14 @@ class Neutral:
         # change is well. This is accomplished by making a simple object called
         # angleList. It behaves similar as a list but calls computeAlphas
         # every time an element in the list is changed
-        self._yawAngles = callbackList([0 for i in range(self.nTurbs)],
-                                       self.computeAlphas)  # Yaw angle [deg]
-        self._tiltAngles = callbackList([0 for i in range(self.nTurbs)],
-                                        self.computeAlphas)  # Tilt angle [deg]
-        self._alphas = [0 for i in range(self.nTurbs)]  # turbine angle [rad]
+        self._phis = [0 for i in range(self.nTurbs)]  # turbine angle [rad]
 
         self.wakeDir = [np.array([0, 0, 0]) for i in range(self.nTurbs)]
         self.Cvec = [np.array([[0, 0], [0, 0]]) for i in range(self.nTurbs)]
+
+        self._yawAngles = callbackList([0 for i in range(self.nTurbs)],
+                                       self.derivedAttrs)  # Yaw angle [deg]
+        self.tiltAngles = [0 for i in range(self.nTurbs)]  # Tilt angle [deg]
         self.bladePitch = [1.9 if turb.usePitch else 0
                            for turb in layout.turbines]  # blade pitch [deg]
 
@@ -31,8 +31,8 @@ class Neutral:
     @yawAngles.setter
     def yawAngles(self, value):
         if len(value) == self.nTurbs:
-            self._yawAngles = callbackList(value, self.computeAlphas)
-            self.computeAlphas()
+            self._yawAngles = callbackList(value, self.derivedAttrs)
+            self.derivedAttrs()
         else:
             raise Exception('length of yawAngles should be %d' % self.nTurbs)
 
@@ -43,27 +43,29 @@ class Neutral:
     @tiltAngles.setter
     def tiltAngles(self, value):
         if len(value) == self.nTurbs:
-            self._tiltAngles = callbackList(value, self.computeAlphas)
-            self.computeAlphas()
+            self._tiltAngles = callbackList(value, self.derivedAttrs)
+            self.derivedAttrs()
         else:
             raise Exception('length of yawAngles should be %d' % self.nTurbs)
 
     @property
-    def alphas(self):
-        return self._alphas
+    def phis(self):
+        return self._phis
 
-    def computeAlphas(self):
+    def derivedAttrs(self):
         windDir = np.array([-1, 0, 0])
         for i in range(self.nTurbs):
+            # Notice that tilt is defined clockwise, sign change!
             R = np.dot(self.rotMatrixZ(np.radians(self._yawAngles[i])),
-                       self.rotMatrixY(np.radians(self._tiltAngles[i])))
+                       self.rotMatrixY(np.radians(-self._tiltAngles[i])))
             thrustDir = np.dot(R, windDir)
-            self._alphas[i] = np.arccos(np.dot(thrustDir, windDir))
+            self._phis[i] = np.arccos(np.dot(thrustDir, windDir))
             if thrustDir[0] == -1:
-                self.wakeDir = thrustDir
+                self.wakeDir[i] = thrustDir
             else:
-                self.wakeDir = np.array([0, thrustDir[1], thrustDir[2]])
-                self.wakeDir = self.wakeDir/np.linalg.norm(self.wakeDir)
+                self.wakeDir[i] = np.array([0, thrustDir[1], thrustDir[2]])
+                self.wakeDir[i] = self.wakeDir[i]/np.linalg.norm(self.wakeDir[i])
+            self.Cvec[i] = np.dot(R[1:, 1:], R[1:, 1:].T)
 
     # Define a rotation matrix around Z
     def rotMatrixZ(self, gamma):

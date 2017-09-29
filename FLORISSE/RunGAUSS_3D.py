@@ -14,7 +14,7 @@ from visualizationTools.viewer import viewer
 
 
 # Select a velocity, deflection and wake summing model
-model = inputClasses.modelData.modelData(2, 1, 2)
+model = inputClasses.modelData.modelData(2, 3, 2)
 
 # Select a wind farm layout and specify how the turbine control mode
 layout = layouts.Layout2(True)
@@ -30,15 +30,15 @@ outputNeutral = windPlant.windPlant(model, layout, cSet, True)
 outputNeutral.printVelocitiesAndPowers()
 
 viewApp = viewer(outputNeutral)
-#viewApp.showView(3)
+#viewApp.showView(0)
 
 # NOTE: large-scale optimization techniques have not been enabled in this
 # version, but will be released in future versions
-outputOptim = optimizers.axialOpt(model, layout, copy.copy(cSet))
-outputOptim.printVelocitiesAndPowers()
+#outputOptim = optimizers.axialOpt(model, layout, copy.copy(cSet))
+#outputOptim.printVelocitiesAndPowers()
 
-outputOptim = optimizers.yawOpt(model, layout, copy.copy(cSet))
-outputOptim.printVelocitiesAndPowers()
-#
-#viewAppYawOpt = viewer(outputOptim)
+#outputOptYaw = optimizers.yawOpt(model, layout, copy.copy(cSet))
+#outputOptYaw.printVelocitiesAndPowers()
+##
+#viewAppYawOpt = viewer(outputOptYaw)
 #viewAppYawOpt.showView(0)
