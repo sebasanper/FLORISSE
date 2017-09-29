@@ -166,8 +166,6 @@ class porteAgelDeflectionThrustAngle:
 
         self.veer = layout.veer
         self.D = layout.turbines[turbI].rotorDiameter
-        self.Uinf = layout.windSpeed
-        self.aI = output.aI[turbI]
         self.Ct = output.Ct[turbI]
         self.phi = cSet.phis[turbI]
         self.wakeDir = cSet.wakeDir[turbI]
@@ -181,8 +179,8 @@ class porteAgelDeflectionThrustAngle:
         # Start of farwake
         self.x0 = (self.D*(np.cos(self.phi) *
                    (1+np.sqrt(1-self.Ct*np.cos(self.phi)))) /
-                  (np.sqrt(2)*(4*model.alpha*output.TI[turbI] +
-                   2*model.beta*(1-np.sqrt(1-self.Ct)))))
+                   (np.sqrt(2)*(4*model.alpha*output.TI[turbI] +
+                    2*model.beta*(1-np.sqrt(1-self.Ct)))))
         # Angle of near wake
         self.theta_C0 = (2*((.3*self.phi)/np.cos(self.phi)) *
                          (1-np.sqrt(1-self.Ct*np.cos(self.phi))))
@@ -190,28 +188,29 @@ class porteAgelDeflectionThrustAngle:
         self.deltaX0 = np.tan(self.theta_C0)*self.x0
 
         # Neutral covariance matrix
-        self.sigNeutral_x0 = np.dot(self.C, np.array([[1, 0], [0, 1]])*np.sqrt(.5)*self.D/2)
+        self.sigNeutral_x0 = np.array([[1, 0], [0, 1]])*np.sqrt(.5)*self.D/2
 
         # wake expansion parameters
         self.ky = model.ka*output.TI[turbI] + model.kb
         self.kz = model.ka*output.TI[turbI] + model.kb
 
         self.relCoef = np.linalg.det(
-                np.dot(self.C, np.linalg.inv((
-                        [[self.ky, 0], [0, self.kz]]*self.M0)**2)))**0.25
+                np.dot(np.dot(self.C, self.sigNeutral_x0**2), np.linalg.inv(
+                        ([[self.ky, 0], [0, self.kz]]*self.M0)**2)))**0.25
 
     def displ(self, x):
-        varWake = np.dot(self.C, (np.array([[self.ky, 0], [0, self.kz]])*x +
-                                  self.sigNeutral_x0)**2)
-        lnInnerTerm = np.linalg.det(np.dot(varWake, np.linalg.inv(
-                       np.dot(self.C, self.sigNeutral_x0**2))))**.25
-        lnTerm = (((1.6+self.sqrM0)*(1.6*np.sqrt(lnInnerTerm)-self.sqrM0)) /
-                  ((1.6-self.sqrM0)*(1.6*np.sqrt(lnInnerTerm)+self.sqrM0)))
+
         if x < 0:
             return 0, 0
         elif x < self.x0:
             displ = self.deltaX0*x/self.x0
         else:
+            varWake = np.dot(self.C, (np.array([[self.ky, 0], [0, self.kz]]) *
+                             (x-self.x0) + self.sigNeutral_x0)**2)
+            lnInnerTerm = np.linalg.det(np.dot(varWake, np.linalg.inv(
+                           np.dot(self.C, self.sigNeutral_x0**2))))**.25
+            lnTerm = (((1.6+self.sqrM0)*(1.6*lnInnerTerm-self.sqrM0)) /
+                      ((1.6-self.sqrM0)*(1.6*lnInnerTerm+self.sqrM0)))
             displ = (self.deltaX0 + (self.theta_C0*self.E0/5.2) *
                      self.relCoef*np.log(lnTerm))
 

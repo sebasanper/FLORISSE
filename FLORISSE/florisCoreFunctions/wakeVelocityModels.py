@@ -133,3 +133,79 @@ class GAUSS:
 
     def B(self, x, y, z):
         return np.ones(y.shape, dtype=bool)
+
+
+class GAUSSThrustAngle:
+    """This class instantiates an object for computing the wake velocity
+    profile at some point Y, Z at downwind position X according to the
+    Porte-Age model as adapted by Jennifer Anonni"""
+
+    def __init__(self, model, layout, cSet, output, turbI):
+        self.ka = model.ka
+        self.kb = model.kb
+        self.alpha = model.alpha
+        self.beta = model.beta
+
+        self.veer = layout.veer
+        self.D = layout.turbines[turbI].rotorDiameter
+        self.Ct = output.Ct[turbI]
+        self.yaw = cSet.yawAngles[turbI]
+        self.phi = cSet.phis[turbI]
+        self.wakeDir = cSet.wakeDir[turbI]
+        self.C = cSet.Cvec[turbI]
+        self.ellipseA = np.linalg.inv(self.C*(self.D/2)**2)
+
+        self.C0 = 1 - np.sqrt(1 - self.Ct)
+        self.E0 = self.C0**2 - 3*np.exp(1/12)*self.C0 + 3*np.exp(1/3)
+        self.M0 = self.C0*(2-self.C0)
+        self.sqrM0 = np.sqrt(self.M0)
+
+        # Start of farwake
+        self.x0 = (self.D*(np.cos(self.phi) *
+                   (1+np.sqrt(1-self.Ct*np.cos(self.phi)))) /
+                   (np.sqrt(2)*(4*model.alpha*output.TI[turbI] +
+                    2*model.beta*(1-np.sqrt(1-self.Ct)))))
+        # Angle of near wake
+        self.theta_C0 = (2*((.3*self.phi)/np.cos(self.phi)) *
+                         (1-np.sqrt(1-self.Ct*np.cos(self.phi))))
+        # Displacement at end of near wake
+        self.deltaX0 = np.tan(self.theta_C0)*self.x0
+
+        # Neutral covariance matrix
+        self.sigNeutral_x0 = np.array([[1, 0], [0, 1]])*np.sqrt(.5)*self.D/2
+
+        # wake expansion parameters
+        self.ky = model.ka*output.TI[turbI] + model.kb
+        self.kz = model.ka*output.TI[turbI] + model.kb
+
+    def V(self, U, x, y, z):
+        xR = y*np.tan(-self.yaw*np.pi/180.)
+        if x < self.x0 and (x > xR).any():
+            ellipse = (self.ellipseA[0][0]*y**2 + 2*self.ellipseA[1][0]*y*z +
+                       self.ellipseA[1][1]*z**2)
+            # Compute the standard deviation in the near and far wake
+            nwCoreMask = np.sqrt(ellipse) <= (1-(x/self.x0)) 
+            elipRatio = 1-(1-(x/self.x0))/(np.finfo(float).eps + np.sqrt(ellipse))
+    
+            S = np.linalg.inv((self.C*(self.sigNeutral_x0**2)) *
+                 ((((np.finfo(float).eps + 0*(x<=0))+x*(x>0))/self.x0)**2))
+            nwExp = (np.exp(-0.5*(elipRatio**2)*np.squeeze(np.matmul(np.matmul(
+                     np.expand_dims(np.stack((y, z), 2), 2), S),
+                     np.expand_dims(np.stack((y, z), 2), 3)),(2, 3))))
+            nw = U*(1-self.C0*(nwCoreMask + nwExp*~nwCoreMask)*(x > xR))
+            return nw
+        elif x >= self.x0:
+            varWake = np.dot(self.C, (np.array([[self.ky, 0], [0, self.kz]]) *
+                          (x-self.x0) + self.sigNeutral_x0)**2)
+            fwExp = (np.exp(-0.5*np.squeeze(np.matmul(np.matmul(
+                     np.expand_dims(np.stack((y, z), 2), 2), np.linalg.inv(varWake)),
+                     np.expand_dims(np.stack((y, z), 2), 3)),(2, 3))))
+            fw = U*(1-(1-np.sqrt(1-self.Ct*np.cos(self.phi) *
+                  np.linalg.det(np.dot(np.dot(self.C, self.sigNeutral_x0**2),
+                  np.linalg.inv(varWake)))))*fwExp)
+            return fw
+        else:
+            return U
+
+    def B(self, x, y, z):
+        return np.ones(y.shape, dtype=bool)

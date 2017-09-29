@@ -11,6 +11,7 @@ import outputClasses.outputs
 
 import florisCoreFunctions.windPlantFunctions as wPFs
 
+
 class TestWake(unittest.TestCase):
     # TODO: Extend this with more checks
     def test_deflection_direction(self):

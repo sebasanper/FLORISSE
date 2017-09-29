@@ -46,6 +46,8 @@ class modelData:
             self.velClass = wVMs.FLORIS
         elif velocityModel == 2:
             self.velClass = wVMs.GAUSS
+        elif velocityModel == 3:
+            self.velClass = wVMs.GAUSSThrustAngle
         else:
             raise Exception('No valid wake velocity model was specified')
 
