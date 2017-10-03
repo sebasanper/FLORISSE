@@ -11,10 +11,13 @@ class jimenezDeflection:
         self.kd = model.wakeDeflection
         self.ad = model.ad
         self.bd = model.bd
+        self.aT = model.aT
+        self.bT = model.bT
+
         self.D = layout.turbines[turbI].rotorDiameter
         self.Ct = output.Ct[turbI]
-        self.yaw = cSet.yawAngles[turbI]  # sign reversed in literature
-        self.tilt = cSet.tiltAngles[turbI]
+        self.yaw = np.radians(cSet.yawAngles[turbI])
+        self.tilt = np.radians(cSet.tiltAngles[turbI])
 
         # angle of deflection
         self.xiInitYaw = 1./2.*np.cos(self.yaw)*np.sin(self.yaw)*self.Ct
@@ -36,14 +39,12 @@ class jimenezDeflection:
                      self.xiInitTilt**2)/((30*self.kd/self.D)*(2*self.kd*x /
                       self.D + 1)**5.)) - (self.xiInitTilt*self.D*(15 +
                                            self.xiInitTilt**2.)/(30*self.kd)))
-        displTiltTotal = displTilt + (self.ad + self.bd*x)
-
+        displTiltTotal = displTilt + (self.aT + self.bT*x)
         return displYawTotal, displTiltTotal
 
 
 class porteAgelDeflection:
-    """This class instantiates an object for computing the downwind
-    deflection at some downwind position X according to the
+    """Computes the deflection at some downwind position X according to the
     Porte-Age model as adapted by Jennifer Anonni"""
 
     def __init__(self, model, layout, cSet, output, turbI):
@@ -62,22 +63,22 @@ class porteAgelDeflection:
         self.aI = output.aI[turbI]
         self.Ct = output.Ct[turbI]
         self.TI = output.TI[turbI]
-        self.yaw = -cSet.yawAngles[turbI]  # sign reversed in literature
-        self.tilt = cSet.tiltAngles[turbI]
+        self.yaw = np.radians(-cSet.yawAngles[turbI])  # sign reversed in paper
+        self.tilt = np.radians(-cSet.tiltAngles[turbI])
 
     def displ(self, x):
         # initial velocity deficits
-        uR = (self.Ct*np.cos(self.yaw*np.pi/180.) /
-              (2.*(1-np.sqrt(1-(self.Ct*np.cos(self.yaw*np.pi/180.))))))
+        uR = (self.Ct*np.cos(self.yaw) /
+              (2.*(1-np.sqrt(1-(self.Ct*np.cos(self.yaw))))))
 
         # initial Gaussian wake expansion
         sigma_z0 = self.D*0.5*np.sqrt(uR/(1 + np.sqrt(1-self.Ct)))
-        sigma_y0 = (sigma_z0*(np.cos((self.yaw)*np.pi/180.)) *
+        sigma_y0 = (sigma_z0*(np.cos(self.yaw)) *
                     (np.cos(self.veer*np.pi/180.)))
 
         # quantity that determines when the far wake starts
-        x0 = (self.D*(np.cos(self.yaw*np.pi/180.) *
-              (1+np.sqrt(1-self.Ct*np.cos(self.yaw*np.pi/180.)))) /
+        x0 = (self.D*(np.cos(self.yaw) *
+              (1+np.sqrt(1-self.Ct*np.cos(self.yaw)))) /
               (np.sqrt(2)*(4*self.alpha*self.TI +
                            2*self.beta*(1-np.sqrt(1-self.Ct)))))
 
@@ -90,16 +91,16 @@ class porteAgelDeflection:
         E0 = C0**2 - 3*np.exp(1./12.)*C0 + 3*np.exp(1./3.)
 
         # yaw parameters (skew angle and distance from centerline)
-        theta_c0 = (2*((.3*self.yaw*np.pi/180)/np.cos(self.yaw*np.pi/180)) *
-                    (1-np.sqrt(1-self.Ct*np.cos(self.yaw*np.pi/180.))))
-        theta_z0 = (2*((.3*self.tilt*np.pi/180)/np.cos(self.tilt*np.pi/180)) *
-                    (1-np.sqrt(1-self.Ct*np.cos(self.tilt*np.pi/180.))))
+        theta_c0 = (2*((.3*self.yaw)/np.cos(self.yaw)) *
+                    (1-np.sqrt(1-self.Ct*np.cos(self.yaw))))
+        theta_z0 = (2*((.3*self.tilt)/np.cos(self.tilt)) *
+                    (1-np.sqrt(1-self.Ct*np.cos(self.tilt))))
         delta0 = np.tan(theta_c0)*(x0)
         delta_z0 = np.tan(theta_z0)*(x0)
 
         if x < 0:
-            delta = 0
-            deltaZ = 0
+            delta = self.ad + self.bd*x
+            deltaZ = self.aT + self.bT*x
         elif x < x0:
             delta = (x/x0)*delta0 + (self.ad + self.bd*x)
             deltaZ = (x/x0)*delta_z0 + (self.aT + self.bT*x)
@@ -121,8 +122,8 @@ class porteAgelDeflection:
 
 
 class jimenezDeflectionThrustAngle:
-    """This class instantiates an object for computing the downwind
-    deflection of a wake according to Jimenez et al"""
+    """This class has a variation of the Jimenez et al deflection model,
+    A wake direction and thrustangle phi determine the deflection"""
 
     def __init__(self, model, layout, cSet, output, turbI):
         # Extract the model properties from model and set them in the class
@@ -147,16 +148,15 @@ class jimenezDeflectionThrustAngle:
                   self.D + 1)**5.)) - (self.xiInit*self.D*(15 +
                                        self.xiInit**2.)/(30*self.kd)))
         # corrected displacement with lateral offset
-        wakePos = self.wakeDir * displ
+        wakePos = -self.wakeDir * displ
 
         return (wakePos[1] + (self.ad + self.bd*x),
                 wakePos[2] + (self.aT + self.bT*x))
 
 
 class porteAgelDeflectionThrustAngle:
-    """This class instantiates an object for computing the downwind
-    deflection at some downwind position X according to the
-    Porte-Age model as adapted by Jennifer Anonni"""
+    """Computes the deflection at some downwind position X according to the
+    Porte-Age model as adapted by Roald Storm"""
 
     def __init__(self, model, layout, cSet, output, turbI):
         self.ad = model.ad
@@ -201,7 +201,7 @@ class porteAgelDeflectionThrustAngle:
     def displ(self, x):
 
         if x < 0:
-            return 0, 0
+            return self.ad + self.bd*x, self.aT + self.bT*x
         elif x < self.x0:
             displ = self.deltaX0*x/self.x0
         else:

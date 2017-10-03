@@ -13,11 +13,17 @@ class TestControlSet(unittest.TestCase):
     def test_neutral_controlSet(self):
         layout = layouts.Layout1(True)
         cSet = inputClasses.controlSettings.Neutral(layout)
+
+        with self.assertRaises(Exception):
+            cSet.yawAngles = [0, 0, 0, 0, 0]
+        with self.assertRaises(IndexError):
+            cSet.yawAngles[layout.nTurbs+1]
+
         for i in range(layout.nTurbs):
             self.assertEqual(cSet.yawAngles[i], 0)
             self.assertEqual(cSet.tiltAngles[i], 0)
 
-        for angle in np.arange(30, -30, -5):
+        for angle in np.arange(-30, 30, 15):
             # TODO: don't use abs() but sign derived from wakeDir
             cSet.yawAngles[0] = angle
             self.assertAlmostEqual(abs(np.radians(angle)), cSet.phis[0], 8,

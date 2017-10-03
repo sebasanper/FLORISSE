@@ -38,8 +38,9 @@ def sweptAreaGrid(model, layout):
 
 def initializeFlowField(Z, layout):
     # initialize the flow field used in the 3D model based on shear using the
-    # power log law
-    Ufield = (layout.windSpeed * (Z/np.mean(layout.zLoc))**layout.shear)
+    # power log law. Hub heigth of the first turbine is used for this function
+    charZ = layout.turbines[0].hubHeight
+    Ufield = (layout.windSpeed * (Z/charZ)**layout.shear)
 
     return Ufield
 

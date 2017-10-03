@@ -3,7 +3,7 @@ import imp
 import unittest
 import pickle
 
-from Turbines.NREL5MW.NREL5MW import NREL5MWTurbine
+from turbines.NREL5MW.NREL5MW import NREL5MWTurbine
 
 
 class TestNREL5MWProperties(unittest.TestCase):

@@ -20,6 +20,8 @@ class TestLayout(unittest.TestCase):
         self.assertEqual(layout.windDirection, 0.0)
         self.assertEqual(layout.nTurbs, len(layout.xLoc))
 
+        # TODO: change this test to test some usefell edge cases instead of a
+        # vector with a bunch of values
         for wDir in np.arange(0, 360, 30):
             layout.windDirection = wDir
             xLocRot, yLocRot = self.rotateClockwise(layout.xLoc, layout.yLoc,

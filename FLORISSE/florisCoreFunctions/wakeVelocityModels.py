@@ -2,6 +2,24 @@
 import numpy as np
 
 
+class WakeSlice:
+    """All the wake code is vectorized in the y and z dimension. Computing
+    the predicted velocity of the wake thus always happens in slices with one
+    x-coordinate and a Y and Z matrix.
+
+    These inputs than return a velocity prediction for that particular slice.
+    To plot this properly and make the velocity profiles behave continous a
+    wake boundary should be specified. This requires two components, a boundary
+    value such as the radial distance from the centerline and a threshold.
+
+    The wake object than combines the velocity profile and boundary information
+    together with the turbine rotor the determine the wake position"""
+    def __init__(self, velocity, boundaryValue, boundaryThreshold):
+        self.V = velocity
+        self.BV = boundaryValue
+        self.BT = boundaryThreshold
+
+
 class Jensen:
     """This class instantiates an object for computing the wake velocity
     profile at some point Y, Z at downwind position X accorindg to Jensen"""
@@ -11,15 +29,13 @@ class Jensen:
         self.R = layout.turbines[turbI].rotorDiameter/2
         self.aI = output.aI[turbI]
 
-    def V(self, U, x, y, z):
+    def ws(self, U, x, Y, Z):
         # compute the velocity based on the classic Jensen/Park model,
         # see Jensen 1983
         c = (self.R/(self.ke*(x) + self.R))**2
         v = U*(1-2.*self.aI*c)
-        return v
 
-    def B(self, x, y, z):
-        return (np.hypot(y, z) < (self.ke*x + self.R)) & (x > 0)
+        return WakeSlice(v, np.hypot(Y, Z), self.ke*x + self.R)
 
 
 class FLORIS:
@@ -28,21 +44,23 @@ class FLORIS:
     FLORIS model developed by gebraad et al."""
 
     def __init__(self, model, layout, cSet, output, turbI):
-        self.ke = model.wakeExpansion
-        self.me = np.array(model.me)
-
+        # Save turbine specific attirbutes
         self.R = layout.turbines[turbI].rotorDiameter/2
         self.aI = output.aI[turbI]
         self.yaw = cSet.yawAngles[turbI]
 
-        # Adjust the expansion coefficient MU for the yaw angle
+        # save expansion coefficient and expansion modifiers
+        self.ke = model.wakeExpansion
+        self.me = np.array(model.me)
+
+        # Adjust the recovery coefficient MU for the yaw angle
         self.MU = (np.array(model.MU) /
                    (np.cos(np.radians(model.aU + model.bU*self.yaw))))
 
-    def V(self, U, x, y, z):
+    def ws(self, U, x, Y, Z):
         # compute the velocity based on the classic Floris model,
         # see Gebraad et al
-        r = np.hypot(y, z)
+        radius = np.hypot(Y, Z)
 
         # wake zone radii
         rZones = self.R + self.ke*self.me*x
@@ -50,13 +68,11 @@ class FLORIS:
         # defining wake parameters
         cZones = (self.R/(self.R + self.ke*self.MU*x))**2
 
-        c = (((r <= rZones[2]) ^ (r < rZones[1]))*cZones[2] +
-             ((r <= rZones[1]) ^ (r < rZones[0]))*cZones[1] +
-             (r <= rZones[0])*cZones[0])
-        return U*(1-2.*self.aI*c)
-
-    def B(self, x, y, z):
-        return (np.hypot(y, z) < (self.R + self.ke*self.me[2]*x)) & (x > 0)
+        c = (((radius <= rZones[2]) ^ (radius < rZones[1]))*cZones[2] +
+             ((radius <= rZones[1]) ^ (radius < rZones[0]))*cZones[1] +
+             (radius <= rZones[0])*cZones[0])
+        return WakeSlice(U*(1-2.*self.aI*c), radius,
+                         self.R + self.ke*self.me[2]*x)
 
 
 class GAUSS:
@@ -78,8 +94,9 @@ class GAUSS:
         self.TI = output.TI[turbI]
         self.yaw = -cSet.yawAngles[turbI]  # sign reversed in literature
         self.tilt = cSet.tiltAngles[turbI]
+        self.Ri = cSet.Rvec[turbI].T
 
-    def V(self, U, x, y, z):
+    def ws(self, U, x, Y, Z):
 
         # initial velocity deficits
         uR = (self.Ct*np.cos(self.yaw*np.pi/180.) /
@@ -101,8 +118,7 @@ class GAUSS:
         kz = self.ka*self.TI + self.kb
 
         # Compute the location of the swept plane of the rotor
-        xR = y*np.tan(self.yaw*np.pi/180.)
-        behindSwept = x > xR
+        xR = np.einsum('ij, jmn -> imn', self.Ri, np.stack([0*Y, Y, Z]))[0]
 
         sigma_y_nw = ((((x0-xR)-(x-xR))/(x0-xR))*0.501*self.D *
                       np.sqrt(self.Ct/2.) + ((x-xR)/(x0-xR))*sigma_y0)
@@ -122,17 +138,14 @@ class GAUSS:
              (np.sin(2*self.veer*np.pi/180.))/(4*sigma_z**2))
         c = ((np.sin(self.veer*np.pi/180.)**2)/(2*sigma_y**2) +
              (np.cos(self.veer*np.pi/180.)**2)/(2*sigma_z**2))
-        totGauss = (np.exp(-(a*(y)**2 - 2*b*(y)*(z) + c*(z)**2)))
+        totGauss = (np.exp(-(a*(Y)**2 - 2*b*(Y)*(Z) + c*(Z)**2)))
 
         # Compute the velocity deficit
         coreVelDef = (1-((self.Ct*np.cos(self.yaw*np.pi/180.)) /
                       (8.0*sigma_y*sigma_z/self.D**2)))
         Uwake = U-(U*(1-np.sqrt(abs(coreVelDef))))*totGauss
 
-        return U*~behindSwept + Uwake*behindSwept
-
-    def B(self, x, y, z):
-        return np.ones(y.shape, dtype=bool)
+        return WakeSlice(Uwake, np.hypot(Y, Z), 1000)
 
 
 class GAUSSThrustAngle:
@@ -178,34 +191,29 @@ class GAUSSThrustAngle:
         self.ky = model.ka*output.TI[turbI] + model.kb
         self.kz = model.ka*output.TI[turbI] + model.kb
 
-    def V(self, U, x, y, z):
-        xR = y*np.tan(-self.yaw*np.pi/180.)
-        if x < self.x0 and (x > xR).any():
-            ellipse = (self.ellipseA[0][0]*y**2 + 2*self.ellipseA[1][0]*y*z +
-                       self.ellipseA[1][1]*z**2)
+    def ws(self, U, x, Y, Z):
+        # Having yz stacked is usefull for implementing quadratic
+        # multiplication of two arrays i.e. [x, y] * A * [[x, y]]
+        YZ = np.stack([Y, Z])
+        if x < self.x0:
+            ellipse = (self.ellipseA[0][0]*Y**2 + 2*self.ellipseA[1][0]*Y*Z +
+                       self.ellipseA[1][1]*Z**2)
             # Compute the standard deviation in the near and far wake
-            nwCoreMask = np.sqrt(ellipse) <= (1-(x/self.x0)) 
+            nwCoreMask = np.sqrt(ellipse) <= (1-(x/self.x0))
             elipRatio = 1-(1-(x/self.x0))/(np.finfo(float).eps + np.sqrt(ellipse))
-    
+
             S = np.linalg.inv((self.C*(self.sigNeutral_x0**2)) *
                  ((((np.finfo(float).eps + 0*(x<=0))+x*(x>0))/self.x0)**2))
-            nwExp = (np.exp(-0.5*(elipRatio**2)*np.squeeze(np.matmul(np.matmul(
-                     np.expand_dims(np.stack((y, z), 2), 2), S),
-                     np.expand_dims(np.stack((y, z), 2), 3)),(2, 3))))
-            nw = U*(1-self.C0*(nwCoreMask + nwExp*~nwCoreMask)*(x > xR))
-            return nw
-        elif x >= self.x0:
-            varWake = np.dot(self.C, (np.array([[self.ky, 0], [0, self.kz]]) *
-                          (x-self.x0) + self.sigNeutral_x0)**2)
-            fwExp = (np.exp(-0.5*np.squeeze(np.matmul(np.matmul(
-                     np.expand_dims(np.stack((y, z), 2), 2), np.linalg.inv(varWake)),
-                     np.expand_dims(np.stack((y, z), 2), 3)),(2, 3))))
-            fw = U*(1-(1-np.sqrt(1-self.Ct*np.cos(self.phi) *
-                  np.linalg.det(np.dot(np.dot(self.C, self.sigNeutral_x0**2),
-                  np.linalg.inv(varWake)))))*fwExp)
-            return fw
+            nwExp = np.exp(-0.5*np.einsum('gij, gh, hij ->ij', YZ, S, YZ) *
+                           (elipRatio**2))
+            nw = U*(1-self.C0*(nwCoreMask + nwExp*~nwCoreMask))
+            return WakeSlice(nw, np.hypot(Y, Z), 1000)
         else:
-            return U
-
-    def B(self, x, y, z):
-        return np.ones(y.shape, dtype=bool)
+            varWake = np.dot(self.C, (np.array([[self.ky, 0], [0, self.kz]]) *
+                             (x-self.x0) + self.sigNeutral_x0)**2)
+            fwExp = np.exp(-0.5*np.einsum('gij, gh, hij ->ij', YZ,
+                                          np.linalg.inv(varWake), YZ))
+            fw = U*(1-(1-np.sqrt(1-self.Ct *
+                    np.linalg.det(np.dot(np.dot(self.C, self.sigNeutral_x0**2),
+                                  np.linalg.inv(varWake)))))*fwExp)
+            return WakeSlice(fw, np.hypot(Y, Z), 1000)

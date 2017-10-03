@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 
-from Turbines.NREL5MW.NREL5MW import NREL5MWTurbine
+from turbines.NREL5MW.NREL5MW import NREL5MWTurbine
 
 
 class Nrel5MWLayout:
@@ -25,8 +25,8 @@ class Nrel5MWLayout:
 
     # Rotating the wind should change the rotated locations of the turbines.
     @windDirection.setter
-    def windDirection(self, windDirection):
-        self._windDirection = windDirection
+    def windDirection(self, value):
+        self._windDirection = value
         self.rotateCoordinates()
 
     def rotateCoordinates(self):
@@ -84,3 +84,35 @@ class Layout3(Nrel5MWLayout):
         # Atmospheric Conditions
         self.windSpeed = 7.0       # wind speed [m/s]
         self.windDirection = -20.0  # wind direction [deg] (compass degrees)
+
+
+class LayoutJenTiltThree(Nrel5MWLayout):
+    """A windfarm layout with 3 NREL5MW turbines placed in a line"""
+    # set turbine locations - example 2x2 wind farm
+    xLoc = [0, 1, 2]
+    yLoc = [0, 0, 0]
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        D = self.turbines[0].rotorDiameter
+        self.xLoc = [0, 7*D, 14*D]
+
+        # Atmospheric Conditions
+        self.windSpeed = 8.0       # wind speed [m/s]
+        self.windDirection = 0.0  # wind direction [deg] (compass degrees)
+
+
+class LayoutJenTiltTwo(Nrel5MWLayout):
+    """A windfarm layout with 3 NREL5MW turbines placed in a line"""
+    # set turbine locations - example 2x2 wind farm
+    xLoc = [0, 1]
+    yLoc = [0, 0]
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        D = self.turbines[0].rotorDiameter
+        self.xLoc = [0, 7*D]
+
+        # Atmospheric Conditions
+        self.windSpeed = 8.0       # wind speed [m/s]
+        self.windDirection = 0.0  # wind direction [deg] (compass degrees)

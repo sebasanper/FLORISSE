@@ -9,7 +9,7 @@ import inputClasses.layouts as layouts
 import inputClasses.controlSettings
 import inputClasses.modelData
 
-from Turbines.NREL5MW.NREL5MW import NREL5MWTurbine
+from turbines.NREL5MW.NREL5MW import NREL5MWTurbine
 
 
 # Select a velocity, deflection and wake summing model

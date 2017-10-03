@@ -1,5 +1,5 @@
-#!/usr/bin/python3
 # -*- coding: utf-8 -*-
+
 import florisCoreFunctions.wakeCombinationModels as wCMs
 import florisCoreFunctions.wakeDeflectionModels as wDMs
 import florisCoreFunctions.wakeVelocityModels as wVMs
@@ -38,8 +38,6 @@ class modelData:
     avgCube = False
 
     def __init__(self, velocityModel, deflectionModel, combineWakes):
-        self.wake = wake
-
         if velocityModel == 0:
             self.velClass = wVMs.Jensen
         elif velocityModel == 1:
@@ -76,12 +74,3 @@ class modelData:
     # threshold distance of turbines to include in "added turbulence"
     def TIdistance(self, D):
         return 15*D
-
-
-class wake:
-    def __init__(self, model, layout, cSet, output, turbI):
-        velocityModel = model.velClass(model, layout, cSet, output, turbI)
-        deflectionModel = model.deflClass(model, layout, cSet, output, turbI)
-        self.V = velocityModel.V
-        self.B = velocityModel.B
-        self.displ = deflectionModel.displ

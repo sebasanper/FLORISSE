@@ -4,13 +4,14 @@ import copy
 import outputClasses.outputs
 
 import florisCoreFunctions.windPlantFunctions as wPFs
+from florisCoreFunctions.wake import Wake
 
 
 def windPlant(model, layout, cSet, *argv):
     # Create an output object based on the layout. This will hold the results
     # of the FLORIS run and the settings used to run it
     if argv[0]:
-         # fullOutput saves the model layout and controlset as attributes
+        # fullOutput saves the model layout and controlset as attributes
         output = outputClasses.outputs.fullOutput(
                   copy.copy(model), copy.copy(layout), copy.copy(cSet))
     else:
@@ -40,26 +41,26 @@ def windPlant(model, layout, cSet, *argv):
     for turbI in sortedTurbIds:
         # compute effective wind speed at turbine by taking the average
         # velocity across the rotor disk
-        output.windSpeed[turbI] = wPFs.avgVelocity(X, Y, Z, Ufield, xTurb[turbI],
-                                              yTurb[turbI], zTurb[turbI],
-                                              D[turbI], turbI, model, cSet)
+        output.windSpeed[turbI] = wPFs.avgVelocity(
+                X, Y, Z, Ufield, xTurb[turbI], yTurb[turbI], zTurb[turbI],
+                D[turbI], turbI, model, cSet)
 
         output = wPFs.computeCpCtPoweraI(layout, cSet, output, turbI)
 
-        # compute the initial added turbulence at the rotor
+        # compute the added turbulence at the rotor cause by upwind turbines
         upWindTurbines = sortedTurbIds[:sortedTurbIds.index(turbI)]
-
-        TI_added = wPFs.computeAddedTI(np.atleast_3d(UfieldOrig[turbI, :, :]), xTurb, yTurb, zTurb,
-         Utp[turbI,:,:,:], turbI, upWindTurbines, model, layout, output)
+        TI_added = wPFs.computeAddedTI(
+                np.atleast_3d(UfieldOrig[turbI, :, :]), xTurb, yTurb, zTurb,
+                Utp[turbI, :, :, :], turbI, upWindTurbines, model, layout, output)
 
         # add turbulence via sum of squares
         output.TI[turbI] = np.linalg.norm(TI_added + [layout.TI_0])
 
         # Instantiate the wake of this turbine
-        output.wakes[turbI] = model.wake(model, layout, cSet, output, turbI)
+        output.wakes[turbI] = Wake(model, layout, cSet, output, turbI)
 
-        # Compute the velocity field according to this wake
-        tol = (np.abs(np.sin(cSet.yawAngles[turbI])) *
+        # Compute the velocity field as predicted by this wake
+        tol = (10 + np.sin(cSet.phis[turbI]) *
                (layout.turbines[turbI].rotorDiameter)/2)
         dwDist = X[:, 0, 0]-xTurb[turbI]
         Yrel = Y - yTurb[turbI]
@@ -79,7 +80,7 @@ def velAtLocations(X, Y, Z, output):
     Ufield = copy.copy(UfieldOrig)
 
     for turbI in range(output.layout.nTurbs):
-        tol = (np.abs(np.sin(output.cSet.yawAngles[turbI])) *
+        tol = (10 + np.sin(output.cSet.phis[turbI]) *
                (output.layout.turbines[turbI].rotorDiameter)/2)
         Xrel = X[:, 0, 0]-output.layout.xLocRot[turbI]
         Yrel = Y - output.layout.yLocRot[turbI]
@@ -96,10 +97,6 @@ def computeVelocity(dwDist, Y, Z, Uin, wake, tol):
     # cycle through the grid generated above
     for xIdx in range(dwDist.shape[0]):
         if dwDist[xIdx] >= -tol:
-            yDisp, zDisp = wake.displ(dwDist[xIdx])
-            yMat = Y[xIdx, :, :]-yDisp
-            zMat = Z[xIdx, :, :]-zDisp
-            wakeMask = wake.B(dwDist[xIdx], yMat, zMat)
-            uWake = wake.V(Uin[xIdx, :, :], dwDist[xIdx], yMat, zMat)
-            U[xIdx, :, :] = uWake*wakeMask + Uin[xIdx, :, :]*~wakeMask
+            U[xIdx, :, :] = wake.V(Uin[xIdx, :, :], dwDist[xIdx],
+                                   Y[xIdx, :, :], Z[xIdx, :, :])
     return U
