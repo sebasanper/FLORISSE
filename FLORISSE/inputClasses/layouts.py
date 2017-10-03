@@ -33,7 +33,7 @@ class Nrel5MWLayout:
         # this function rotates the coordinates so that the flow direction is
         # now alligned with the x-axis. This makes computing wakes and wake
         # overlap much simpler
-        rotMatrix = self.rotationMatrixCW(np.radians(self.windDirection))
+        rotMatrix = self.rotationMatZ(np.radians(self.windDirection))
 
         coordsRot = np.dot(rotMatrix, np.array([self.xLoc, self.yLoc]))
 
@@ -41,8 +41,8 @@ class Nrel5MWLayout:
         self.xLocRot = tuple(coordsRot[0, :] - min(coordsRot[0, :]))
         self.yLocRot = tuple(coordsRot[1, :] - min(coordsRot[1, :]))
 
-    # Define a clockwise rotation matrix
-    def rotationMatrixCW(self, theta):
+    # Define a rotation matrix around Z
+    def rotationMatZ(self, theta):
         return np.array([[np.cos(theta), -np.sin(theta)],
                         [np.sin(theta),  np.cos(theta)]])
 

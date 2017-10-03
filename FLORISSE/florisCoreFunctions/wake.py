@@ -10,14 +10,14 @@ class Wake:
     automatic gradient generation."""
 
     def __init__(self, model, layout, cSet, output, turbI):
-        self.ws = model.velClass(model, layout, cSet, output, turbI).ws
+        self.wakeSlicer = model.velClass(model, layout, cSet, output, turbI).wakeSlicer
         self.displ = model.deflClass(model, layout, cSet, output, turbI).displ
         # Ri holds the inverse of rotationMatrix R
         self.Ri = cSet.Rvec[turbI].T
 
     def V(self, U, x, Y, Z):
         yDisp, zDisp = self.displ(x)
-        wSlice = self.ws(U, x, Y-yDisp, Z-zDisp)
+        wSlice = self.wakeSlicer(U, x, Y-yDisp, Z-zDisp)
 
         # Broadcast x to make a matrix: (x + 0*y) = np.broadcast_to(x, y.shape)
         tempCoords = np.einsum('ij, jmn -> imn',

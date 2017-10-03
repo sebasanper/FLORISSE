@@ -2,7 +2,6 @@
 import numpy as np
 from scipy.interpolate import griddata
 
-# 1. rotatedCoordinates - Align the x-axis with the wind direction.
 # 2. sweptAreaGrid - Generate grid points for swept areas of all the turbines
 # 3. initializeFlowField - initialize the flow field used in the 3D model based
 #                          on shear using the power log law
@@ -36,13 +35,10 @@ def sweptAreaGrid(model, layout):
     return X, Y, Z
 
 
-def initializeFlowField(Z, layout):
+def initializeFlowField(Z, windSpeed, shear, charZ):
     # initialize the flow field used in the 3D model based on shear using the
-    # power log law. Hub heigth of the first turbine is used for this function
-    charZ = layout.turbines[0].hubHeight
-    Ufield = (layout.windSpeed * (Z/charZ)**layout.shear)
-
-    return Ufield
+    # power log law.
+    return (windSpeed * (Z/charZ)**shear)
 
 
 def avgVelocity(X, Y, Z, Ufield, xTurb, yTurb, zTurb, D, turbI, model, cSet):

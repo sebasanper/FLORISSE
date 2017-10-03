@@ -35,6 +35,7 @@ class Neutral:
     In addition to that the controlset holds four attributes that are derived
     from the yaw and tilt angles."""
     def __init__(self, layout):
+        # TODO: don't pass layout, just pass nturbs and usePitch list
         self.nTurbs = layout.nTurbs
         # If an element in yaw or tilt is changed the other attributes need to
         # change is well. This is accomplished by making a simple object called

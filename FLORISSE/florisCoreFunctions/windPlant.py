@@ -20,7 +20,6 @@ def windPlant(model, layout, cSet, *argv):
     # Rotate the frame of reference such that the wind is alligned with x-axis
     xTurb = layout.xLocRot
     yTurb = layout.yLocRot
-
     zTurb = np.array(layout.zLoc)
     D = [turb.rotorDiameter for turb in layout.turbines]
 
@@ -34,8 +33,10 @@ def windPlant(model, layout, cSet, *argv):
     # sort turbine coordinates from front to back
     sortedTurbIds = [i[0] for i in sorted(enumerate(xTurb), key=lambda x:x[1])]
 
-    # initialize flow field with a uniform shear layer
-    UfieldOrig = wPFs.initializeFlowField(Z, layout)
+    # initialize flow field with a uniform shear layer, Hub heigth of the first
+    # turbine is used as the characteristic height
+    UfieldOrig = wPFs.initializeFlowField(Z, layout.windSpeed ,layout.shear,
+                                          layout.turbines[0].hubHeight)
     Ufield = copy.copy(UfieldOrig)
 
     for turbI in sortedTurbIds:
@@ -60,13 +61,13 @@ def windPlant(model, layout, cSet, *argv):
         output.wakes[turbI] = Wake(model, layout, cSet, output, turbI)
 
         # Compute the velocity field as predicted by this wake
-        tol = (10 + np.sin(cSet.phis[turbI]) *
-               (layout.turbines[turbI].rotorDiameter)/2)
+        tipOffset = (10 + np.sin(cSet.phis[turbI]) *
+                     (layout.turbines[turbI].rotorDiameter)/2)
         dwDist = X[:, 0, 0]-xTurb[turbI]
         Yrel = Y - yTurb[turbI]
         Zrel = Z - zTurb[turbI]
         Utp[:, :, :, turbI] = computeVelocity(dwDist, Yrel, Zrel, UfieldOrig,
-                                              output.wakes[turbI], tol)
+                                              output.wakes[turbI], tipOffset)
 
         # Combine the wake of the turbine with the flowfield so far
         Ufield = model.wakeCombine(UfieldOrig, output.windSpeed[turbI],
@@ -76,17 +77,19 @@ def windPlant(model, layout, cSet, *argv):
 
 
 def velAtLocations(X, Y, Z, output):
-    UfieldOrig = wPFs.initializeFlowField(Z, output.layout)
+    UfieldOrig = wPFs.initializeFlowField(Z, output.layout.windSpeed,
+                                          output.layout.shear,
+                                          output.layout.turbines[0].hubHeight)
     Ufield = copy.copy(UfieldOrig)
 
     for turbI in range(output.layout.nTurbs):
-        tol = (10 + np.sin(output.cSet.phis[turbI]) *
-               (output.layout.turbines[turbI].rotorDiameter)/2)
+        tipOffset = (10 + np.sin(output.cSet.phis[turbI]) *
+                     (output.layout.turbines[turbI].rotorDiameter)/2)
         Xrel = X[:, 0, 0]-output.layout.xLocRot[turbI]
         Yrel = Y - output.layout.yLocRot[turbI]
         Zrel = Z - output.layout.zLoc[turbI]
         Uturb = computeVelocity(Xrel, Yrel, Zrel, UfieldOrig,
-                                output.wakes[turbI], tol)
+                                output.wakes[turbI], tipOffset)
         Ufield = output.model.wakeCombine(
                 UfieldOrig, output.windSpeed[turbI], Ufield, Uturb)
     return Ufield

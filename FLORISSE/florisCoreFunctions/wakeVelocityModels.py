@@ -29,7 +29,7 @@ class Jensen:
         self.R = layout.turbines[turbI].rotorDiameter/2
         self.aI = output.aI[turbI]
 
-    def ws(self, U, x, Y, Z):
+    def wakeSlicer(self, U, x, Y, Z):
         # compute the velocity based on the classic Jensen/Park model,
         # see Jensen 1983
         c = (self.R/(self.ke*(x) + self.R))**2
@@ -57,7 +57,7 @@ class FLORIS:
         self.MU = (np.array(model.MU) /
                    (np.cos(np.radians(model.aU + model.bU*self.yaw))))
 
-    def ws(self, U, x, Y, Z):
+    def wakeSlicer(self, U, x, Y, Z):
         # compute the velocity based on the classic Floris model,
         # see Gebraad et al
         radius = np.hypot(Y, Z)
@@ -96,7 +96,7 @@ class GAUSS:
         self.tilt = cSet.tiltAngles[turbI]
         self.Ri = cSet.Rvec[turbI].T
 
-    def ws(self, U, x, Y, Z):
+    def wakeSlicer(self, U, x, Y, Z):
 
         # initial velocity deficits
         uR = (self.Ct*np.cos(self.yaw*np.pi/180.) /
@@ -191,7 +191,7 @@ class GAUSSThrustAngle:
         self.ky = model.ka*output.TI[turbI] + model.kb
         self.kz = model.ka*output.TI[turbI] + model.kb
 
-    def ws(self, U, x, Y, Z):
+    def wakeSlicer(self, U, x, Y, Z):
         # Having yz stacked is usefull for implementing quadratic
         # multiplication of two arrays i.e. [x, y] * A * [[x, y]]
         YZ = np.stack([Y, Z])

@@ -19,7 +19,7 @@ class NREL5MWTurbine:
 
         self.usePitch = usePitch
         if usePitch:
-            self.Cp, self.Ct, self.betaLims = CpCtpitch()
+            self.Cp, self.Ct, self.betaLims = CpCtpitchWs()
         else:
             self.Cp, self.Ct = CpCtWs()
 
@@ -59,7 +59,7 @@ def CpCtWs():
     return fCp, fCt
 
 
-def CpCtpitch():
+def CpCtpitchWs():
     # lookup table for Cp/Ct based on FAST
 
     dir_path = os.path.dirname(os.path.realpath(__file__))
