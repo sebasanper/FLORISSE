@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import numpy as np
+import autograd.numpy as np
 
 
 class Wake:
@@ -22,8 +22,8 @@ class Wake:
         # Broadcast x to make a matrix: (x + 0*y) = np.broadcast_to(x, y.shape)
         tempCoords = np.einsum('ij, jmn -> imn',
                                self.Ri, np.stack([x + 0*Y, Y, Z]))
-        rotorBoundary = self.tanHFilter(tempCoords[0], 0, 1)
-        wakeBoundary = self.tanHFilter(wSlice.BT, wSlice.BV, 1)
+        rotorBoundary = self.tanHFilter(tempCoords[0], 0, 10)
+        wakeBoundary = self.tanHFilter(wSlice.BT, wSlice.BV, 10)
         mask = rotorBoundary*wakeBoundary
 
         return wSlice.V*mask + U*(1-mask)

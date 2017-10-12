@@ -17,7 +17,8 @@ from visualizationTools.viewer import viewer
 model = inputClasses.modelData.modelData(2, 1, 2)
 
 # Select a wind farm layout and specify how the turbine control mode
-layout = layouts.Layout2(True)
+layout = layouts.LayoutRow(True)
+#layout = layouts.Layout2(True)
 
 # Generate control settings for the turbines in the layout
 # all turbines set aligned with wind
@@ -29,8 +30,8 @@ cSet = inputClasses.controlSettings.Neutral(layout)
 outputNeutral = windPlant.windPlant(model, layout, cSet, True)
 outputNeutral.printVelocitiesAndPowers()
 
-viewApp = viewer(outputNeutral)
-viewApp.showView(0)
+#viewApp = viewer(outputNeutral)
+#viewApp.showView(0)
 #viewApp.showView(3)
 #viewApp.showView(4)
 
@@ -39,15 +40,19 @@ viewApp.showView(0)
 #outputOptim = optimizers.axialOpt(model, layout, copy.copy(cSet))
 #outputOptim.printVelocitiesAndPowers()
 
-outputOptYaw = optimizers.yawOpt(model, layout, copy.copy(cSet))
-outputOptYaw.printVelocitiesAndPowers()
+#outputOptYaw = optimizers.yawOpt(model, layout, copy.copy(cSet))
+#outputOptYaw.printVelocitiesAndPowers()
+#
+#viewAppYawOpt = viewer(outputOptYaw)
+#viewAppYawOpt.showView(0)
+import autograd.numpy as np
+from autograd import value_and_grad
 
-viewAppYawOpt = viewer(outputOptYaw)
-viewAppYawOpt.showView(0)
+def optPlant(x):
+    model.ka = x[0]
+    model.kb = x[1]
+    output = windPlant.windPlant(model, layout, cSet, False)
+    return np.sum(np.array(output.power))
 
-#import numpy as np
-#a = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-#print(np.einsum('ij->i', a))
-#print(np.einsum('ji->i', a))
-#print(np.einsum('ij->j', a))
-#print(np.einsum('ji->j', a))
+grad_core = value_and_grad(optPlant)
+print(grad_core([0.3871, 0.004 ]))

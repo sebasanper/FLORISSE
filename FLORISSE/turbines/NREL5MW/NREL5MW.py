@@ -1,7 +1,7 @@
 # default NREL 5MW turbine file
 # note similar files can be produced for other turbines
 import os
-import numpy as np
+import autograd.numpy as np
 from pandas import read_csv
 from scipy.interpolate import interp1d, interp2d
 
@@ -90,4 +90,8 @@ def CpCtpitchWs():
     fCp = interp2d(windSpeeds, beta, Cp, kind='cubic')
     fCt = interp2d(windSpeeds, beta, Ct, kind='cubic')
 
-    return fCp, fCt, (min(beta), max(beta))
+    def ffCp(a,b):
+        return fCp(8,1.9)
+    def ffCt(a,b):
+        return fCt(8,1.9)
+    return ffCp, ffCt, (min(beta), max(beta))

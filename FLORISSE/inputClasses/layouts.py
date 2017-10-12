@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import numpy as np
+import autograd.numpy as np
 
 from turbines.NREL5MW.NREL5MW import NREL5MWTurbine
 
@@ -14,10 +14,12 @@ class Nrel5MWLayout:
     shear = 0.12        # shear exponent (0.14 -> neutral)
 
     def __init__(self, usePitch):
+        self.xLoc = np.array(self.xLoc)
+        self.yLoc = np.array(self.yLoc)
         self.nTurbs = len(self.xLoc)
         self.turbines = [NREL5MWTurbine(usePitch)
                          for i in range(self.nTurbs)]
-        self.zLoc = [turb.hubHeight for turb in self.turbines]
+        self.zLoc = np.array([turb.hubHeight for turb in self.turbines])
 
     @property
     def windDirection(self):
@@ -38,8 +40,8 @@ class Nrel5MWLayout:
         coordsRot = np.dot(rotMatrix, np.array([self.xLoc, self.yLoc]))
 
         # Make the turbine locations start at 0,0. Save the X and Y domains
-        self.xLocRot = tuple(coordsRot[0, :] - min(coordsRot[0, :]))
-        self.yLocRot = tuple(coordsRot[1, :] - min(coordsRot[1, :]))
+        self.xLocRot = coordsRot[0, :] - min(coordsRot[0, :])
+        self.yLocRot = coordsRot[1, :] - min(coordsRot[1, :])
 
     # Define a rotation matrix around Z
     def rotationMatZ(self, theta):
@@ -113,6 +115,19 @@ class LayoutJenTiltTwo(Nrel5MWLayout):
         D = self.turbines[0].rotorDiameter
         self.xLoc = [0, 7*D]
 
+        # Atmospheric Conditions
+        self.windSpeed = 8.0       # wind speed [m/s]
+        self.windDirection = 0.0  # wind direction [deg] (compass degrees)
+
+
+class LayoutRow(Nrel5MWLayout):
+    """A windfarm layout with 3 NREL5MW turbines placed in a line"""
+    # set turbine locations - example 2x2 wind farm
+    xLoc = [0, 630, 1260, 1890, 2520]
+    yLoc = [0, 0, 0, 0, 0]
+
+    def __init__(self, *args):
+        super().__init__(*args)
         # Atmospheric Conditions
         self.windSpeed = 8.0       # wind speed [m/s]
         self.windDirection = 0.0  # wind direction [deg] (compass degrees)

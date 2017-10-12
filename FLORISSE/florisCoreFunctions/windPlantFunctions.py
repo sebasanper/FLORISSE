@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-import numpy as np
+import autograd.numpy as np
 from scipy.interpolate import griddata
+import pdb
 
 # 2. sweptAreaGrid - Generate grid points for swept areas of all the turbines
 # 3. initializeFlowField - initialize the flow field used in the 3D model based
@@ -51,8 +52,8 @@ def avgVelocity(X, Y, Z, Ufield, xTurb, yTurb, zTurb, D, turbI, model, cSet):
     zR = (D/2.)*np.cos(np.radians(tilt))
     yR = (D/2.)*np.cos(np.radians(yaw))
 
-    yPts = np.linspace(yTurb-yR, yTurb+yR, rotorPts)
-    zPts = np.linspace(zTurb-zR, zTurb+zR, rotorPts)
+    yPts, zPts = np.meshgrid(np.linspace(yTurb-yR, yTurb+yR, rotorPts),
+                             np.linspace(zTurb-zR, zTurb+zR, rotorPts), indexing='ij')
 
     # define the rotor plane along with the points associated with the rotor
     Xtmp = []
@@ -76,19 +77,12 @@ def avgVelocity(X, Y, Z, Ufield, xTurb, yTurb, zTurb, D, turbI, model, cSet):
         print('Too few points for outputFlowField, ' +
               'please run again with more points')
 
-    utmp = []
-
-    for i in range(rotorPts):
-        for j in range(rotorPts):
-            dist = np.hypot(yPts[i] - yTurb, zPts[j] - zTurb)
-            if dist <= (D/2.):
-                utmp.append(griddata((Xtmp, Ytmp, Ztmp), Utmp,
-                            (xTurb, yPts[i], zPts[j]), method='nearest'))
-
+    # TODO: use yaw angles again. This gives the same result but it is not good
+    cond2 = np.hypot(Ytmp - yTurb, Ztmp - zTurb) <= D/2
     if model.avgCube:
         return np.mean(utmp**3)**(1./3.)
     else:
-        return np.mean(utmp)
+        return np.mean(np.array(Utmp)[cond2])
 
 
 def computeCpCtPoweraI(layout, cSet, output, turbI):
@@ -98,7 +92,8 @@ def computeCpCtPoweraI(layout, cSet, output, turbI):
     turbine = layout.turbines[turbI]
     yaw = cSet.yawAngles[turbI]
     tilt = cSet.tiltAngles[turbI]
-
+#    if turbI == 1:
+#        pdb.set_trace()
     if layout.turbines[turbI].usePitch:
         output.Cp[turbI] = turbine.Cp(output.windSpeed[turbI],
                                       cSet.bladePitch[turbI])
@@ -116,6 +111,7 @@ def computeCpCtPoweraI(layout, cSet, output, turbI):
     output.power[turbI] = (.5*layout.airDensity *
                            (np.pi*(turbine.rotorDiameter/2)**2)*Cptmp *
                            turbine.gE*output.windSpeed[turbI]**3)
+    
     # Compute axial induction factor
     output.aI[turbI] = ((0.5 / np.cos(cSet.yawAngles[turbI] * np.pi / 180.)) *
      (1 - np.sqrt(1-output.Ct[turbI]*np.cos(cSet.yawAngles[turbI]*np.pi/180))))
@@ -141,7 +137,7 @@ def computeAddedTI(UfieldOrig, xTurb, yTurb, zTurb, Utp,
             continue
 
         # compute percent overlap
-        Uwake = np.atleast_3d(Utp[:, :, turbIdx])
+        Uwake = np.atleast_3d(Utp[upwindTurbines.index(turbIdx)][turbI, :, :])
         AreaOverlap[turbIdx] = computeOverlap(Uwake, UfieldOrig)
 
         # Niayifar and Porte-Agel, "A new analytical model for wind farm power

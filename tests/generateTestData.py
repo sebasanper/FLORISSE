@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import imp
 import pickle
-import numpy as np
+import autograd.numpy as np
 
 import florisCoreFunctions.windPlant as windPlant
 

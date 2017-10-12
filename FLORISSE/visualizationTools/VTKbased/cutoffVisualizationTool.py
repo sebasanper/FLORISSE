@@ -4,7 +4,7 @@
 import vtk
 from PyQt5.QtWidgets import QWidget, QSlider, QLabel, QVBoxLayout
 from PyQt5.QtCore import Qt
-import numpy as np
+import autograd.numpy as np
 
 
 class cutoffInterface(QWidget):

@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-import numpy as np
+import autograd.numpy as np
+np.hypot.defvjp(lambda g, ans, vs, gvs, x, y: g*x/ans)
+np.hypot.defvjp(lambda g, ans, vs, gvs, x, y: g*y/ans, argnum=1)
 
 
 # freestream linear superposition
@@ -14,9 +16,9 @@ def LVLS(Uinf, Ueff, Ufield, Uwake):
 
 # sum of squares freestream superposition
 def SOSFS(Uinf, Ueff, Ufield, Uwake):
-    return Uinf - np.sqrt((Uinf - Uwake)**2 + (Uinf - Ufield)**2)
+    return Uinf - np.hypot(Uinf - Uwake, Uinf - Ufield)
 
 
 # sum of squares local velocity superposition
 def SOSLVS(Uinf, Ueff, Ufield, Uwake):
-    return Ueff - np.sqrt((Ueff - Uwake)**2 + (Uinf - Ufield)**2)
+    return Ueff - np.hypot(Ueff - Uwake, Uinf - Ufield)

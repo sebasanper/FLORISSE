@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-import numpy as np
+import autograd.numpy as np
 import copy
 import outputClasses.outputs
+import pdb
 
 import florisCoreFunctions.windPlantFunctions as wPFs
 from florisCoreFunctions.wake import Wake
@@ -20,22 +21,19 @@ def windPlant(model, layout, cSet, *argv):
     # Rotate the frame of reference such that the wind is alligned with x-axis
     xTurb = layout.xLocRot
     yTurb = layout.yLocRot
-    zTurb = np.array(layout.zLoc)
+    zTurb = layout.zLoc
     D = [turb.rotorDiameter for turb in layout.turbines]
+    # sort turbine coordinates from front to back in rotated frame
+    sortedTurbIds = [i[0] for i in sorted(enumerate(xTurb), key=lambda x:x[1])]
 
     # Generate grid points at the swept area of every turbine
     X, Y, Z = wPFs.sweptAreaGrid(model, layout)
-
-    # Save the flowfield prediction of every turbine in Utp, the weird notation
-    # is a trick for tuple concatenation
-    Utp = np.zeros(X.shape + (layout.nTurbs,))
-
-    # sort turbine coordinates from front to back
-    sortedTurbIds = [i[0] for i in sorted(enumerate(xTurb), key=lambda x:x[1])]
+    # Utp will hold numpy arrays with the velocity field at each turbine
+    Utp = []
 
     # initialize flow field with a uniform shear layer, Hub heigth of the first
     # turbine is used as the characteristic height
-    UfieldOrig = wPFs.initializeFlowField(Z, layout.windSpeed ,layout.shear,
+    UfieldOrig = wPFs.initializeFlowField(Z, layout.windSpeed, layout.shear,
                                           layout.turbines[0].hubHeight)
     Ufield = copy.copy(UfieldOrig)
 
@@ -45,15 +43,13 @@ def windPlant(model, layout, cSet, *argv):
         output.windSpeed[turbI] = wPFs.avgVelocity(
                 X, Y, Z, Ufield, xTurb[turbI], yTurb[turbI], zTurb[turbI],
                 D[turbI], turbI, model, cSet)
-
         output = wPFs.computeCpCtPoweraI(layout, cSet, output, turbI)
 
         # compute the added turbulence at the rotor cause by upwind turbines
         upWindTurbines = sortedTurbIds[:sortedTurbIds.index(turbI)]
         TI_added = wPFs.computeAddedTI(
                 np.atleast_3d(UfieldOrig[turbI, :, :]), xTurb, yTurb, zTurb,
-                Utp[turbI, :, :, :], turbI, upWindTurbines, model, layout, output)
-
+                Utp, turbI, upWindTurbines, model, layout, output)
         # add turbulence via sum of squares
         output.TI[turbI] = np.linalg.norm(TI_added + [layout.TI_0])
 
@@ -66,13 +62,12 @@ def windPlant(model, layout, cSet, *argv):
         dwDist = X[:, 0, 0]-xTurb[turbI]
         Yrel = Y - yTurb[turbI]
         Zrel = Z - zTurb[turbI]
-        Utp[:, :, :, turbI] = computeVelocity(dwDist, Yrel, Zrel, UfieldOrig,
-                                              output.wakes[turbI], tipOffset)
 
-        # Combine the wake of the turbine with the flowfield so far
+        Utp.append(computeVelocity(dwDist, Yrel, Zrel, UfieldOrig,
+                                   output.wakes[turbI], tipOffset))
+
         Ufield = model.wakeCombine(UfieldOrig, output.windSpeed[turbI],
-                                   Ufield, Utp[:, :, :, turbI])
-
+                                   Ufield, Utp[sortedTurbIds.index(turbI)])
     return output
 
 
@@ -96,10 +91,11 @@ def velAtLocations(X, Y, Z, output):
 
 
 def computeVelocity(dwDist, Y, Z, Uin, wake, tol):
-    U = copy.copy(Uin)
-    # cycle through the grid generated above
+    U = []
     for xIdx in range(dwDist.shape[0]):
         if dwDist[xIdx] >= -tol:
-            U[xIdx, :, :] = wake.V(Uin[xIdx, :, :], dwDist[xIdx],
-                                   Y[xIdx, :, :], Z[xIdx, :, :])
-    return U
+            U.append(wake.V(Uin[xIdx, :, :], dwDist[xIdx],
+                            Y[xIdx, :, :], Z[xIdx, :, :]))
+        else:
+            U.append(Uin[xIdx, :, :])
+    return np.array(U)

@@ -14,8 +14,8 @@ class TestLayout(unittest.TestCase):
         self.assertEqual(layout.veer, 0.0)
         self.assertEqual(layout.TI_0, 0.1)
         self.assertEqual(layout.shear, 0.12)
-        self.assertEqual(layout.xLoc, [0, 800, 0, 800])
-        self.assertEqual(layout.yLoc, [0, 0, 600, 600])
+        np.testing.assert_array_equal(layout.xLoc, np.array([0, 800, 0, 800]))
+        np.testing.assert_array_equal(layout.yLoc, np.array([0, 0, 600, 600]))
         self.assertEqual(layout.windSpeed, 7.0)
         self.assertEqual(layout.windDirection, 0.0)
         self.assertEqual(layout.nTurbs, len(layout.xLoc))
@@ -26,15 +26,15 @@ class TestLayout(unittest.TestCase):
             layout.windDirection = wDir
             xLocRot, yLocRot = self.rotateClockwise(layout.xLoc, layout.yLoc,
                                                     np.radians(wDir))
-            self.assertEqual(xLocRot, layout.xLocRot)
-            self.assertEqual(yLocRot, layout.yLocRot)
+            np.testing.assert_array_equal(xLocRot, layout.xLocRot)
+            np.testing.assert_array_equal(yLocRot, layout.yLocRot)
 
     def rotateClockwise(self, x, y, theta):
         R = np.array([[np.cos(theta), -np.sin(theta)],
                      [np.sin(theta),  np.cos(theta)]])
         coordsRot = np.dot(R, np.array([x, y]))
-        return (tuple(coordsRot[0, :] - min(coordsRot[0, :])),
-                tuple(coordsRot[1, :] - min(coordsRot[1, :])))
+        return (coordsRot[0, :] - min(coordsRot[0, :]),
+                coordsRot[1, :] - min(coordsRot[1, :]))
 
 if __name__ == '__main__':
     unittest.main()

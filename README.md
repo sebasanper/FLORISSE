@@ -28,6 +28,9 @@ Matplotlib
 
 Jupyter Notebooks
 
+autograd, install using: 
+$ conda install -c travis autograd 
+
 System Requirements for optional VTK visualization tools:
 --------------------
 vtk (Recomended to use Anaconda 64bit, install VTK using
