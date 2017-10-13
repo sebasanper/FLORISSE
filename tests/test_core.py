@@ -25,7 +25,7 @@ class TestFlorisCoreWithGaussian(unittest.TestCase):
         outputNeutral = windPlant.windPlant(self.model, layout, cSet, False)
 
         """Does a full model run give the correct anwer?"""
-        self.assertAlmostEqual(sum(outputNeutral.power)[0], 1162592.50473, 4)
+        self.assertAlmostEqual(sum(outputNeutral.power), 1162592.50473, 4)
 
     def test_power_of_2_by_2_layout_with_NREL5MW_Pitch(self):
         # Select wind farm layout and specify controlset
@@ -42,7 +42,7 @@ class TestFlorisCoreWithGaussian(unittest.TestCase):
             outputNeutral = windPlant.windPlant(self.model, layout, cSet, False)
 
             """Does the model still behave as expected"""
-            self.assertAlmostEqual(sum(outputNeutral.power)[0], value, 8)
+            self.assertAlmostEqual(sum(outputNeutral.power), value, 8)
 
 if __name__ == '__main__':
     unittest.main()

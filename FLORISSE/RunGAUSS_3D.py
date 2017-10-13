@@ -23,8 +23,6 @@ layout = layouts.LayoutRow(True)
 # Generate control settings for the turbines in the layout
 # all turbines set aligned with wind
 cSet = inputClasses.controlSettings.Neutral(layout)
-#cSet.tiltAngles[0] = -25
-#cSet.yawAngles[0] = 25
 
 # Run the model and get an output object
 outputNeutral = windPlant.windPlant(model, layout, cSet, True)
@@ -48,11 +46,42 @@ outputNeutral.printVelocitiesAndPowers()
 import autograd.numpy as np
 from autograd import value_and_grad
 
-def optPlant(x):
+def optKaKb(x):
     model.ka = x[0]
     model.kb = x[1]
     output = windPlant.windPlant(model, layout, cSet, False)
     return np.sum(np.array(output.power))
 
-grad_core = value_and_grad(optPlant)
-print(grad_core([0.3871, 0.004 ]))
+grad_core = value_and_grad(optKaKb)
+print(grad_core([0.3871, 0.004]))
+
+def optAlphaBeta(x):
+    model.alpha = x[0]
+    model.beta = x[1]
+    output = windPlant.windPlant(model, layout, cSet, False)
+    return np.sum(np.array(output.power))
+
+grad_core = value_and_grad(optAlphaBeta)
+print(grad_core([0.58, 0.077]))
+
+def optTI(x):
+    model.TIa = x[0]
+    model.TIb = x[1]
+    model.TIc = x[2]
+    model.TId = x[3]
+    output = windPlant.windPlant(model, layout, cSet, False)
+    return np.sum(np.array(output.power))
+
+grad_core = value_and_grad(optTI)
+print(grad_core([0.73, 0.8325, 0.0325, -0.32]))
+
+def optYaw(x):
+#    print(cSet.yawAngles)
+#    print(x)
+    cSet.yawAngles = x
+#    print(cSet.yawAngles)
+    output = windPlant.windPlant(model, layout, cSet, False)
+    return np.sum(np.array(output.power))
+
+grad_core = value_and_grad(optYaw)
+print(grad_core(np.array([0.0, 0.0, 0.0, 0.0, 0.0])))

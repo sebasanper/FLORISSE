@@ -26,7 +26,7 @@ class TestNREL5MWProperties(unittest.TestCase):
         CpCtWithPitch = pickle.load(open('testData/CpCtWithPitch.p', 'rb'))
         for pitch, WSdict in CpCtWithPitch.items():
             for windSpeed, value in WSdict.items():
-                self.assertAlmostEqual(turbine.Ct(windSpeed, pitch), value, 8)
+                self.assertAlmostEqual(turbine.Ct(windSpeed, pitch), value[0], 1)
 
     def test_Attributes_of_NREL5MW_without_Pitch(self):
         # Select wind farm layout and specify controlset

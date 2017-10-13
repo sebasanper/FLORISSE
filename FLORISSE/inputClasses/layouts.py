@@ -42,6 +42,8 @@ class Nrel5MWLayout:
         # Make the turbine locations start at 0,0. Save the X and Y domains
         self.xLocRot = coordsRot[0, :] - min(coordsRot[0, :])
         self.yLocRot = coordsRot[1, :] - min(coordsRot[1, :])
+        self.sortedTurbIds = [i[0] for i in sorted(enumerate(self.xLocRot),
+                              key=lambda x:x[1])]
 
     # Define a rotation matrix around Z
     def rotationMatZ(self, theta):

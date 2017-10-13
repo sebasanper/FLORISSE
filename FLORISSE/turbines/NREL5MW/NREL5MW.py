@@ -2,6 +2,7 @@
 # note similar files can be produced for other turbines
 import os
 import autograd.numpy as np
+from autograd.core import primitive, new_node, identity
 from pandas import read_csv
 from scipy.interpolate import interp1d, interp2d
 
@@ -87,11 +88,37 @@ def CpCtpitchWs():
             Cp.append(cp[cp.columns[i+1]][j])
             Ct.append(ct[ct.columns[i+1]][j])
 
-    fCp = interp2d(windSpeeds, beta, Cp, kind='cubic')
-    fCt = interp2d(windSpeeds, beta, Ct, kind='cubic')
+    fCpfun = interp2d(windSpeeds, beta, Cp, kind='cubic')
+    fCtfun = interp2d(windSpeeds, beta, Ct, kind='cubic')
 
-    def ffCp(a,b):
-        return fCp(8,1.9)
-    def ffCt(a,b):
-        return fCt(8,1.9)
-    return ffCp, ffCt, (min(beta), max(beta))
+    @primitive
+    def fCp(windSpeed, beta):
+        return fCpfun(windSpeed, beta)[0]
+
+    @primitive
+    def fcp_deriv_0(x, y):
+        return fCpfun(x, y, 1)
+
+    @primitive
+    def fcp_deriv_1(x, y):
+        return fCpfun(x, y, 0, 1)
+
+    fCp.defvjp(lambda g, ans, vs, gvs, x, y: g*fcp_deriv_0(x, y)[0])
+    fCp.defvjp(lambda g, ans, vs, gvs, x, y: g*fcp_deriv_1(x, y)[0], argnum=1)
+
+    @primitive
+    def fCt(windSpeed, beta):
+        return fCtfun(windSpeed, beta)[0]
+
+    @primitive
+    def fct_deriv_0(x, y):
+        return fCtfun(x, y, 1)
+
+    @primitive
+    def fct_deriv_1(x, y):
+        return fCtfun(x, y, 0, 1)
+
+    fCt.defvjp(lambda g, ans, vs, gvs, x, y: g*fct_deriv_0(x, y)[0])
+    fCt.defvjp(lambda g, ans, vs, gvs, x, y: g*fct_deriv_1(x, y)[0], argnum=1)
+
+    return fCp, fCt, (min(beta), max(beta))

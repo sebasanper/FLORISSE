@@ -6,7 +6,6 @@ import os.path
 class outputClass:
     """A simple example class"""
     def __init__(self, model, layout, cSet):
-        nTurbs = layout.nTurbs
 
         # Try to extract the project path so flowfield data can be stored
         try:
@@ -20,13 +19,13 @@ class outputClass:
             self.prPath = False
 
         # individual turbine parameters
-        self.Ct = [[] for i in range(nTurbs)]  # Thrust Coefficient
-        self.Cp = [[] for i in range(nTurbs)]  # Power Coefficient
-        self.aI = [[] for i in range(nTurbs)]  # Axial Induction
-        self.TI = [[] for i in range(nTurbs)]  # Turbulence intensity at rotor
-        self.windSpeed = [[] for i in range(nTurbs)]  # Windspeed at rotor
-        self.power = [[] for i in range(nTurbs)]  # Windspeed at rotor
-        self.wakes = [[] for i in range(nTurbs)]  # Windspeed at rotor
+        self.Ct = []  # Thrust Coefficient
+        self.Cp = []  # Power Coefficient
+        self.aI = []  # Axial Induction
+        self.TI = []  # Turbulence intensity at rotor
+        self.windSpeed = []  # Windspeed at rotor
+        self.power = []  # Windspeed at rotor
+        self.wakes = []  # Windspeed at rotor
 
 
 class powerOutput(outputClass):

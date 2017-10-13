@@ -15,7 +15,7 @@ class jimenezDeflection:
         self.bT = model.bT
 
         self.D = layout.turbines[turbI].rotorDiameter
-        self.Ct = output.Ct[turbI]
+        self.Ct = output.Ct[-1]
         self.yaw = np.radians(cSet.yawAngles[turbI])
         self.tilt = np.radians(cSet.tiltAngles[turbI])
 
@@ -60,9 +60,9 @@ class porteAgelDeflection:
         self.veer = layout.veer
         self.D = layout.turbines[turbI].rotorDiameter
         self.Uinf = layout.windSpeed
-        self.aI = output.aI[turbI]
-        self.Ct = output.Ct[turbI]
-        self.TI = output.TI[turbI]
+#        self.aI = output.aI[turbI]
+        self.Ct = output.Ct[-1]
+        self.TI = output.TI[-1]
         self.yaw = np.radians(-cSet.yawAngles[turbI])  # sign reversed in paper
         self.tilt = np.radians(-cSet.tiltAngles[turbI])
 
@@ -134,7 +134,7 @@ class jimenezDeflectionThrustAngle:
         self.bT = model.bT
 
         self.D = layout.turbines[turbI].rotorDiameter
-        self.Ct = output.Ct[turbI]
+        self.Ct = output.Ct[-1]
         self.phi = cSet.phis[turbI]
         self.wakeDir = cSet.wakeDir[turbI]
 
@@ -166,7 +166,7 @@ class porteAgelDeflectionThrustAngle:
 
         self.veer = layout.veer
         self.D = layout.turbines[turbI].rotorDiameter
-        self.Ct = output.Ct[turbI]
+        self.Ct = output.Ct[-1]
         self.phi = cSet.phis[turbI]
         self.wakeDir = cSet.wakeDir[turbI]
         self.C = cSet.Cvec[turbI]
@@ -179,7 +179,7 @@ class porteAgelDeflectionThrustAngle:
         # Start of farwake
         self.x0 = (self.D*(np.cos(self.phi) *
                    (1+np.sqrt(1-self.Ct*np.cos(self.phi)))) /
-                   (np.sqrt(2)*(4*model.alpha*output.TI[turbI] +
+                   (np.sqrt(2)*(4*model.alpha*output.TI[-1] +
                     2*model.beta*(1-np.sqrt(1-self.Ct)))))
         # Angle of near wake
         self.theta_C0 = (2*((.3*self.phi)/np.cos(self.phi)) *
@@ -191,8 +191,8 @@ class porteAgelDeflectionThrustAngle:
         self.sigNeutral_x0 = np.array([[1, 0], [0, 1]])*np.sqrt(.5)*self.D/2
 
         # wake expansion parameters
-        self.ky = model.ka*output.TI[turbI] + model.kb
-        self.kz = model.ka*output.TI[turbI] + model.kb
+        self.ky = model.ka*output.TI[-1] + model.kb
+        self.kz = model.ka*output.TI[-1] + model.kb
 
         self.relCoef = np.linalg.det(
                 np.dot(np.dot(self.C, self.sigNeutral_x0**2), np.linalg.inv(

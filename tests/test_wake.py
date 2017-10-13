@@ -22,9 +22,10 @@ class TestWake(unittest.TestCase):
         output = outputClasses.outputs.powerOutput(model, layout, cSet)
 
         # Set some required attributes in the output
-        output.windSpeed[0] = 8
-        output = wPFs.computeCpCtPoweraI(layout, cSet, output, 0)
-        output.TI[0] = layout.TI_0
+        output.windSpeed.append(8)
+        output = wPFs.computeCpCtPoweraI(layout.turbines[0], cSet.bladePitch[0], cSet.yawAngles[0],
+                                         cSet.tiltAngles[0], layout.airDensity, output)
+        output.TI.append(layout.TI_0)
         self.wake = Wake(model, layout, cSet, output, 0)
 
     def test_deflection_direction(self):

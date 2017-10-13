@@ -2,10 +2,10 @@
 import autograd.numpy as np
 import copy
 import outputClasses.outputs
-import pdb
 
 import florisCoreFunctions.windPlantFunctions as wPFs
 from florisCoreFunctions.wake import Wake
+import pdb
 
 
 def windPlant(model, layout, cSet, *argv):
@@ -23,8 +23,6 @@ def windPlant(model, layout, cSet, *argv):
     yTurb = layout.yLocRot
     zTurb = layout.zLoc
     D = [turb.rotorDiameter for turb in layout.turbines]
-    # sort turbine coordinates from front to back in rotated frame
-    sortedTurbIds = [i[0] for i in sorted(enumerate(xTurb), key=lambda x:x[1])]
 
     # Generate grid points at the swept area of every turbine
     X, Y, Z = wPFs.sweptAreaGrid(model, layout)
@@ -37,24 +35,28 @@ def windPlant(model, layout, cSet, *argv):
                                           layout.turbines[0].hubHeight)
     Ufield = copy.copy(UfieldOrig)
 
-    for turbI in sortedTurbIds:
+    for sortedIndex in range(layout.nTurbs):
+        turbI = layout.sortedTurbIds[sortedIndex]
+
         # compute effective wind speed at turbine by taking the average
         # velocity across the rotor disk
-        output.windSpeed[turbI] = wPFs.avgVelocity(
+        output.windSpeed.append(wPFs.avgVelocity(
                 X, Y, Z, Ufield, xTurb[turbI], yTurb[turbI], zTurb[turbI],
-                D[turbI], turbI, model, cSet)
-        output = wPFs.computeCpCtPoweraI(layout, cSet, output, turbI)
+                D[turbI], cSet.yawAngles[turbI], cSet.tiltAngles[turbI], model))
+        output = wPFs.computeCpCtPoweraI(layout.turbines[turbI], cSet.bladePitch[turbI], cSet.yawAngles[turbI],
+                                         cSet.tiltAngles[turbI], layout.airDensity, output)
 
         # compute the added turbulence at the rotor cause by upwind turbines
-        upWindTurbines = sortedTurbIds[:sortedTurbIds.index(turbI)]
+        upWindTurbines = layout.sortedTurbIds[:sortedIndex]
         TI_added = wPFs.computeAddedTI(
                 np.atleast_3d(UfieldOrig[turbI, :, :]), xTurb, yTurb, zTurb,
                 Utp, turbI, upWindTurbines, model, layout, output)
+
         # add turbulence via sum of squares
-        output.TI[turbI] = np.linalg.norm(TI_added + [layout.TI_0])
+        output.TI.append(np.linalg.norm(np.array(TI_added + [layout.TI_0])))
 
         # Instantiate the wake of this turbine
-        output.wakes[turbI] = Wake(model, layout, cSet, output, turbI)
+        output.wakes.append(Wake(model, layout, cSet, output, turbI))
 
         # Compute the velocity field as predicted by this wake
         tipOffset = (10 + np.sin(cSet.phis[turbI]) *
@@ -64,10 +66,18 @@ def windPlant(model, layout, cSet, *argv):
         Zrel = Z - zTurb[turbI]
 
         Utp.append(computeVelocity(dwDist, Yrel, Zrel, UfieldOrig,
-                                   output.wakes[turbI], tipOffset))
+                                   output.wakes[-1], tipOffset))
 
-        Ufield = model.wakeCombine(UfieldOrig, output.windSpeed[turbI],
-                                   Ufield, Utp[sortedTurbIds.index(turbI)])
+        Ufield = model.wakeCombine(UfieldOrig, output.windSpeed[sortedIndex],
+                                   Ufield, Utp[sortedIndex])
+
+    reverseOrder = [i[0] for i in sorted(enumerate(-layout.xLocRot), key=lambda x:x[1])]
+    output.Ct = [output.Ct[i] for i in reverseOrder]
+    output.aI = [output.aI[i] for i in reverseOrder]
+    output.TI = [output.TI[i] for i in reverseOrder]
+    output.windSpeed = [output.windSpeed[i] for i in reverseOrder]
+    output.power = [output.power[i] for i in reverseOrder]
+    output.wakes = [output.wakes[i] for i in reverseOrder]
     return output
 
 

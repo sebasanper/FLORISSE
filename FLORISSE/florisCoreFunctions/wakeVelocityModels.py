@@ -27,7 +27,7 @@ class Jensen:
     def __init__(self, model, layout, cSet, output, turbI):
         self.ke = model.wakeExpansion
         self.R = layout.turbines[turbI].rotorDiameter/2
-        self.aI = output.aI[turbI]
+        self.aI = output.aI[-1]
 
     def wakeSlicer(self, U, x, Y, Z):
         # compute the velocity based on the classic Jensen/Park model,
@@ -46,8 +46,8 @@ class FLORIS:
     def __init__(self, model, layout, cSet, output, turbI):
         # Save turbine specific attirbutes
         self.R = layout.turbines[turbI].rotorDiameter/2
-        self.aI = output.aI[turbI]
         self.yaw = cSet.yawAngles[turbI]
+        self.aI = output.aI[-1]
 
         # save expansion coefficient and expansion modifiers
         self.ke = model.wakeExpansion
@@ -89,12 +89,13 @@ class GAUSS:
         self.veer = layout.veer
         self.D = layout.turbines[turbI].rotorDiameter
         self.Uinf = layout.windSpeed
-        self.aI = output.aI[turbI]
-        self.Ct = output.Ct[turbI]
-        self.TI = output.TI[turbI]
+
         self.yaw = -cSet.yawAngles[turbI]  # sign reversed in literature
         self.tilt = cSet.tiltAngles[turbI]
         self.Ri = cSet.Rvec[turbI].T
+
+        self.Ct = output.Ct[-1]
+        self.TI = output.TI[-1]
 
     def wakeSlicer(self, U, x, Y, Z):
 
@@ -161,7 +162,7 @@ class GAUSSThrustAngle:
 
         self.veer = layout.veer
         self.D = layout.turbines[turbI].rotorDiameter
-        self.Ct = output.Ct[turbI]
+        self.Ct = output.Ct[-1]
         self.yaw = cSet.yawAngles[turbI]
         self.phi = cSet.phis[turbI]
         self.wakeDir = cSet.wakeDir[turbI]
@@ -176,7 +177,7 @@ class GAUSSThrustAngle:
         # Start of farwake
         self.x0 = (self.D*(np.cos(self.phi) *
                    (1+np.sqrt(1-self.Ct*np.cos(self.phi)))) /
-                   (np.sqrt(2)*(4*model.alpha*output.TI[turbI] +
+                   (np.sqrt(2)*(4*model.alpha*output.TI[-1] +
                     2*model.beta*(1-np.sqrt(1-self.Ct)))))
         # Angle of near wake
         self.theta_C0 = (2*((.3*self.phi)/np.cos(self.phi)) *
@@ -188,8 +189,8 @@ class GAUSSThrustAngle:
         self.sigNeutral_x0 = np.array([[1, 0], [0, 1]])*np.sqrt(.5)*self.D/2
 
         # wake expansion parameters
-        self.ky = model.ka*output.TI[turbI] + model.kb
-        self.kz = model.ka*output.TI[turbI] + model.kb
+        self.ky = model.ka*output.TI[-1] + model.kb
+        self.kz = model.ka*output.TI[-1] + model.kb
 
     def wakeSlicer(self, U, x, Y, Z):
         # Having yz stacked is usefull for implementing quadratic
