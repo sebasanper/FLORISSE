@@ -71,13 +71,7 @@ def windPlant(model, layout, cSet, *argv):
         Ufield = model.wakeCombine(UfieldOrig, output.windSpeed[sortedIndex],
                                    Ufield, Utp[sortedIndex])
 
-    reverseOrder = [i[0] for i in sorted(enumerate(-layout.xLocRot), key=lambda x:x[1])]
-    output.Ct = [output.Ct[i] for i in reverseOrder]
-    output.aI = [output.aI[i] for i in reverseOrder]
-    output.TI = [output.TI[i] for i in reverseOrder]
-    output.windSpeed = [output.windSpeed[i] for i in reverseOrder]
-    output.power = [output.power[i] for i in reverseOrder]
-    output.wakes = [output.wakes[i] for i in reverseOrder]
+    output.reorderParameters(layout.sortedTurbIds)
     return output
 
 

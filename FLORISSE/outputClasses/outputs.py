@@ -2,6 +2,8 @@
 import sys
 import os.path
 
+import autograd.numpy as np
+
 
 class outputClass:
     """A simple example class"""
@@ -26,6 +28,15 @@ class outputClass:
         self.windSpeed = []  # Windspeed at rotor
         self.power = []  # Windspeed at rotor
         self.wakes = []  # Windspeed at rotor
+
+    def reorderParameters(self, order):
+        self.Cp = [y for x, y in sorted(zip(order, self.Cp))]
+        self.Ct = [y for x, y in sorted(zip(order, self.Ct))]
+        self.aI = [y for x, y in sorted(zip(order, self.aI))]
+        self.TI = [y for x, y in sorted(zip(order, self.TI))]
+        self.windSpeed = [y for x, y in sorted(zip(order, self.windSpeed))]
+        self.power = [y for x, y in sorted(zip(order, self.power))]
+        self.wakes = [y for x, y in sorted(zip(order, self.wakes))]
 
 
 class powerOutput(outputClass):

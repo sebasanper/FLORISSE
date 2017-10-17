@@ -1,16 +1,19 @@
 # optimization modules
 
 from scipy.optimize import minimize
+from autograd import grad
 
 import florisCoreFunctions.windPlant as windPlant
 
 
-def optPlant(x, strOpt, model, layout, cSet):
-    if strOpt == 'axial':
-        cSet.bladePitch = x
-    elif strOpt == 'yaw':
-        cSet.yawAngles = x
+def axialCost(x, strOpt, model, layout, cSet):
+    cSet.bladePitch = x
+    output = windPlant.windPlant(model, layout, cSet, False)
+    return -1*sum(output.power)
 
+
+def yawCost(x, strOpt, model, layout, cSet):
+    cSet.yawAngles = x
     output = windPlant.windPlant(model, layout, cSet, False)
     return -1*sum(output.power)
 
@@ -26,7 +29,7 @@ def axialOpt(model, layout, cSet):
     powerOld = sum(outputUnOptim.power)
 
     bnds = [turb.betaLims for turb in layout.turbines]
-    resPlant = minimize(optPlant, x0, args=('axial', model, layout, cSet),
+    resPlant = minimize(axialCost, x0, args=('axial', model, layout, cSet),
                         method='SLSQP', bounds=bnds, options={'ftol': 0.01, 'eps': 0.5})
 
     cSet.bladePitch = resPlant.x
@@ -62,8 +65,9 @@ def yawOpt(model, layout, cSet):
     outputUnOptim = windPlant.windPlant(model, layout, cSet, True)
     powerOld = sum(outputUnOptim.power)
 
-    resPlant = minimize(optPlant, x0, args=('yaw', model, layout, cSet),
-                        method='SLSQP', bounds=bnds, options={'ftol': 0.1, 'eps': 5.0})
+    resPlant = minimize(yawCost, x0, args=('yaw', model, layout, cSet),
+                        method='SLSQP', bounds=bnds, jac=grad(yawCost),
+                        options={'ftol': 0.1, 'eps': 5.0})
 
     cSet.yawAngles = resPlant.x
     outputOpt = windPlant.windPlant(model, layout, cSet, True)

@@ -90,6 +90,7 @@ class Neutral:
             R = np.dot(self.rotMatrixZ(np.radians(self._yawAngles[i])),
                        self.rotMatrixY(np.radians(-self._tiltAngles[i])))
             thrustDir = np.dot(R, windDir)
+
             self._phis[i] = np.arccos(np.dot(thrustDir, windDir))
             if thrustDir[0] == -1:
                 self.wakeDir[i] = thrustDir
