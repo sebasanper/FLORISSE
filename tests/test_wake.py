@@ -17,7 +17,7 @@ class TestWake(unittest.TestCase):
     def setUp(self):
         # Generate and test a wake
         model = inputClasses.modelData.modelData(0, 0, 0)
-        layout = layouts.Layout2(True)
+        layout = layouts.Layout2by2(True)
         cSet = inputClasses.controlSettings.Neutral(layout)
         output = outputClasses.outputs.powerOutput(model, layout, cSet)
 

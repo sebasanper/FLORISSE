@@ -5,7 +5,7 @@ import florisCoreFunctions.wakeDeflectionModels as wDMs
 import florisCoreFunctions.wakeVelocityModels as wVMs
 
 
-class modelData:
+class modelData(object):
     """Contains the model parameters that govern wake behaviour"""
     # =========================================================================
     #                               JENSEN and FLORIS Wake Parameters

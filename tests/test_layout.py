@@ -9,7 +9,7 @@ class TestLayout(unittest.TestCase):
 
     """Tests for `FLORISSE\florisCoreFunctions\windPlant.py`."""
     def test_nrel5MWlayout(self):
-        layout = layouts.Layout2(True)
+        layout = layouts.Layout2by2(True)
         self.assertEqual(layout.airDensity, 1.225)
         self.assertEqual(layout.veer, 0.0)
         self.assertEqual(layout.TI_0, 0.1)

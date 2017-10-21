@@ -26,7 +26,7 @@ class TestGradients(unittest.TestCase):
         # Select a velocity, deflection and wake summing model
         self.model = inputClasses.modelData.modelData(2, 1, 2)
         # Select wind farm layout and specify controlset
-        self.layout = layouts.Layout2(True)
+        self.layout = layouts.Layout2by2(True)
         self.layout.windDirection = -25
         self.cSet = inputClasses.controlSettings.Neutral(self.layout)
 

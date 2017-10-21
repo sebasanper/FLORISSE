@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import autograd.numpy as np
+np.tanh.defvjp(lambda g, ans, vs, gvs, x: g * (1 - ans**2))
 
 
 class Wake:

@@ -29,7 +29,7 @@ class TestFlorisCoreWithGaussian(unittest.TestCase):
 
     def test_power_of_2_by_2_layout_with_NREL5MW_Pitch(self):
         # Select wind farm layout and specify controlset
-        layout = layouts.Layout2(True)
+        layout = layouts.Layout2by2(True)
         cSet = inputClasses.controlSettings.Neutral(layout)
 
         # In case of model changes, create new data with

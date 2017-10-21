@@ -16,7 +16,7 @@ from turbines.NREL5MW.NREL5MW import NREL5MWTurbine
 model = inputClasses.modelData.modelData(2, 1, 2)
 
 # Select a wind farm layout and specify how the turbine control mode
-layout = layouts.Layout2(True)
+layout = layouts.Layout2by2(True)
 turbine = NREL5MWTurbine(True)
 
 # Generate control settings for the turbines in the layout

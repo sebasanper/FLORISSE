@@ -60,7 +60,6 @@ class porteAgelDeflection:
         self.veer = layout.veer
         self.D = layout.turbines[turbI].rotorDiameter
         self.Uinf = layout.windSpeed
-#        self.aI = output.aI[turbI]
         self.Ct = output.Ct[-1]
         self.TI = output.TI[-1]
         self.yaw = np.radians(-cSet.yawAngles[turbI])  # sign reversed in paper

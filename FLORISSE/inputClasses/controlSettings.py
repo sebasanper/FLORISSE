@@ -27,7 +27,7 @@ class callbackList:
 
 
 # Define a base control set with all the angles set to zero and bladepitch=1.9
-class Neutral:
+class Neutral(object):
     """A control set for the turbines in the windfarm layout. This object holds
     yaw and tilt angles for every turbine. If required bladepitch angles for
     every turbine are also stored here.
