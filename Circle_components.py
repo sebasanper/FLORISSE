@@ -2,7 +2,7 @@ from openmdao.main.api import Component, VariableTree
 from openmdao.lib.datatypes.api import Array, Bool, Float, VarTree
 from Parameters import FLORISParameters
 import numpy as np
-
+change
 
 class floris_windframe(Component):
     """ Calculates the locations of each turbine in the wind direction reference frame """
